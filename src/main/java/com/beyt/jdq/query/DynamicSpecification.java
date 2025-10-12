@@ -4,7 +4,6 @@ import com.beyt.jdq.dto.Criteria;
 import com.beyt.jdq.dto.enums.CriteriaOperator;
 import com.beyt.jdq.dto.enums.JoinType;
 import com.beyt.jdq.exception.*;
-import com.beyt.jdq.util.ApplicationContextUtil;
 import com.beyt.jdq.util.SpecificationUtil;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
@@ -23,15 +22,18 @@ public class DynamicSpecification<Entity> implements Specification<Entity> {
 
     protected List<Criteria> criteriaList;
     protected Map<Triple<From<?, ?>, String, JoinType>, Join<?, ?>> joinMap = new ConcurrentHashMap<>();
+    protected RepositoryContext context;
 
-    public DynamicSpecification(List<Criteria> criteriaList) {
+    public DynamicSpecification(List<Criteria> criteriaList, RepositoryContext context) {
         this.criteriaList = criteriaList;
         this.joinMap = new ConcurrentHashMap<>();
+        this.context = context;
     }
 
-    public DynamicSpecification(List<Criteria> criteriaList, Map<Triple<From<?, ?>, String, JoinType>, Join<?, ?>> joinMap) {
+    public DynamicSpecification(List<Criteria> criteriaList, Map<Triple<From<?, ?>, String, JoinType>, Join<?, ?>> joinMap, RepositoryContext context) {
         this.criteriaList = criteriaList;
         this.joinMap = joinMap;
+        this.context = context;
     }
 
     @Override
@@ -42,7 +44,7 @@ public class DynamicSpecification<Entity> implements Specification<Entity> {
             if (criteriaList.get(i).getOperation() == CriteriaOperator.PARENTHES) {
                 SpecificationUtil.checkHasFirstValue(criteriaList.get(i));
                 try {
-                    predicateAndList.add(new DynamicSpecification<Entity>(((List<Criteria>) (criteriaList.get(i).getValues().get(0))), joinMap).toPredicate(root, query, builder));
+                    predicateAndList.add(new DynamicSpecification<Entity>(((List<Criteria>) (criteriaList.get(i).getValues().get(0))), joinMap, context).toPredicate(root, query, builder));
                 } catch (Exception e) {
                     throw new DynamicQueryNoAvailableParenthesesOperationUsageException(
                             "There is No Available Paranthes Operation Usage in Criteria Key: " + criteriaList.get(i).getKey());
@@ -151,7 +153,7 @@ public class DynamicSpecification<Entity> implements Specification<Entity> {
         for (Object object : objects) {
             Object deserialized = null;
             try {
-                deserialized = ApplicationContextUtil.getDeserializer().deserialize(object.toString(), clazz);
+                deserialized = context.getDeserializer().deserialize(object.toString(), clazz);
             } catch (Exception e) {
                 throw new DynamicQueryValueSerializeException("There is a "
                         + clazz.getSimpleName() + " Deserialization Problem in Criteria Value: "

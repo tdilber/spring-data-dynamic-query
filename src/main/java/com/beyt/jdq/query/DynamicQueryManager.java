@@ -9,8 +9,7 @@ import com.beyt.jdq.dto.DynamicQuery;
 import com.beyt.jdq.dto.enums.CriteriaOperator;
 import com.beyt.jdq.exception.DynamicQueryIllegalArgumentException;
 import com.beyt.jdq.query.rule.specification.*;
-import com.beyt.jdq.repository.DynamicSpecificationRepositoryImpl;
-import com.beyt.jdq.util.ApplicationContextUtil;
+import com.beyt.jdq.repository.JpaDynamicQueryRepositoryImpl;
 import com.beyt.jdq.util.field.FieldUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.IterableUtils;
@@ -65,94 +64,94 @@ public class DynamicQueryManager {
     }
 
     public static <Entity> List<Entity> findAll(JpaSpecificationExecutor<Entity> repositoryExecutor,
-                                                List<Criteria> searchCriteriaList) {
+                                                List<Criteria> searchCriteriaList, RepositoryContext context) {
         List<Entity> result;
         List<Criteria> specificationRules = getMapSpecificRules(specificationRuleMap, searchCriteriaList);
         DynamicSpecification<Entity> specification = null;
 
         if (!specificationRules.isEmpty()) {
-            specification = new DynamicSpecification<>(specificationRules);
+            specification = new DynamicSpecification<>(specificationRules, context);
         }
 
         return repositoryExecutor.findAll(specification);
     }
 
     public static <Entity> Page<Entity> findAll(JpaSpecificationExecutor<Entity> repositoryExecutor,
-                                                List<Criteria> searchCriteriaList, Pageable pageable) {
+                                                List<Criteria> searchCriteriaList, Pageable pageable, RepositoryContext context) {
         List<Criteria> specificationRules = getMapSpecificRules(specificationRuleMap, searchCriteriaList);
 
         DynamicSpecification<Entity> specification = null;
         if (!specificationRules.isEmpty()) {
-            specification = new DynamicSpecification<>(specificationRules);
+            specification = new DynamicSpecification<>(specificationRules, context);
         }
 
         return repositoryExecutor.findAll(specification, pageable);
     }
 
-    public static <Entity> Specification<Entity> getSpecification(List<Criteria> searchCriteriaList) {
+    public static <Entity> Specification<Entity> getSpecification(List<Criteria> searchCriteriaList, RepositoryContext context) {
         List<Criteria> specificationRules = getMapSpecificRules(specificationRuleMap, searchCriteriaList);
 
         DynamicSpecification<Entity> specification = null;
         if (!specificationRules.isEmpty()) {
-            specification = new DynamicSpecification<>(specificationRules);
+            specification = new DynamicSpecification<>(specificationRules, context);
         }
 
         return specification;
     }
 
     public static <Entity> long count(JpaSpecificationExecutor<Entity> repositoryExecutor,
-                                      List<Criteria> searchCriteriaList) {
+                                      List<Criteria> searchCriteriaList, RepositoryContext context) {
         Long result = 0l;
         List<Criteria> specificationRules = getMapSpecificRules(specificationRuleMap, searchCriteriaList);
         DynamicSpecification<Entity> specification = null;
         if (specificationRules == null || !specificationRules.isEmpty()) {
-            specification = new DynamicSpecification<>(specificationRules);
+            specification = new DynamicSpecification<>(specificationRules, context);
         }
         result = repositoryExecutor.count(specification);
 
         return result;
     }
 
-    public static <Entity> List<Entity> getEntityListBySelectableFilterAsList(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery) {
-        return (List<Entity>) DynamicQueryManager.getEntityListBySelectableFilter(repositoryExecutor, dynamicQuery, false);
+    public static <Entity> List<Entity> getEntityListBySelectableFilterAsList(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, RepositoryContext context) {
+        return (List<Entity>) DynamicQueryManager.getEntityListBySelectableFilter(repositoryExecutor, dynamicQuery, false, context);
     }
 
-    public static <Entity> Page<Entity> getEntityListBySelectableFilterAsPage(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery) {
-        return (Page<Entity>) DynamicQueryManager.getEntityListBySelectableFilter(repositoryExecutor, dynamicQuery, true);
+    public static <Entity> Page<Entity> getEntityListBySelectableFilterAsPage(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, RepositoryContext context) {
+        return (Page<Entity>) DynamicQueryManager.getEntityListBySelectableFilter(repositoryExecutor, dynamicQuery, true, context);
     }
 
-    protected static <Entity> Iterable<Entity> getEntityListBySelectableFilter(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, boolean isPage) {
+    protected static <Entity> Iterable<Entity> getEntityListBySelectableFilter(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, boolean isPage, RepositoryContext context) {
         Class<Entity> entityClass = getEntityClass(repositoryExecutor);
-        return getEntityListBySelectableFilterWithReturnType(repositoryExecutor, dynamicQuery, entityClass, isPage);
+        return getEntityListBySelectableFilterWithReturnType(repositoryExecutor, dynamicQuery, entityClass, isPage, context);
     }
 
-    public static <Entity> List<Tuple> getEntityListBySelectableFilterWithTupleAsList(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery) {
-        return (List<Tuple>) DynamicQueryManager.getEntityListBySelectableFilterWithTuple(repositoryExecutor, dynamicQuery, false);
+    public static <Entity> List<Tuple> getEntityListBySelectableFilterWithTupleAsList(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, RepositoryContext context) {
+        return (List<Tuple>) DynamicQueryManager.getEntityListBySelectableFilterWithTuple(repositoryExecutor, dynamicQuery, false, context);
     }
 
-    public static <Entity> Page<Tuple> getEntityListBySelectableFilterWithTupleAsPage(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery) {
-        return (Page<Tuple>) DynamicQueryManager.getEntityListBySelectableFilterWithTuple(repositoryExecutor, dynamicQuery, true);
+    public static <Entity> Page<Tuple> getEntityListBySelectableFilterWithTupleAsPage(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, RepositoryContext context) {
+        return (Page<Tuple>) DynamicQueryManager.getEntityListBySelectableFilterWithTuple(repositoryExecutor, dynamicQuery, true, context);
     }
 
-    protected static <Entity> Iterable<Tuple> getEntityListBySelectableFilterWithTuple(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, boolean isPage) {
-        return getEntityListWithReturnClass(repositoryExecutor, dynamicQuery, Tuple.class, isPage);
+    protected static <Entity> Iterable<Tuple> getEntityListBySelectableFilterWithTuple(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, boolean isPage, RepositoryContext context) {
+        return getEntityListWithReturnClass(repositoryExecutor, dynamicQuery, Tuple.class, isPage, context);
     }
 
-    public static <Entity, ResultType> List<ResultType> getEntityListBySelectableFilterWithReturnTypeAsList(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass) {
-        return (List<ResultType>) DynamicQueryManager.getEntityListBySelectableFilterWithReturnType(repositoryExecutor, dynamicQuery, resultTypeClass, false);
+    public static <Entity, ResultType> List<ResultType> getEntityListBySelectableFilterWithReturnTypeAsList(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass, RepositoryContext context) {
+        return (List<ResultType>) DynamicQueryManager.getEntityListBySelectableFilterWithReturnType(repositoryExecutor, dynamicQuery, resultTypeClass, false, context);
     }
 
-    public static <Entity, ResultType> Page<ResultType> getEntityListBySelectableFilterWithReturnTypeAsPage(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass) {
-        return (Page<ResultType>) DynamicQueryManager.getEntityListBySelectableFilterWithReturnType(repositoryExecutor, dynamicQuery, resultTypeClass, true);
+    public static <Entity, ResultType> Page<ResultType> getEntityListBySelectableFilterWithReturnTypeAsPage(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass, RepositoryContext context) {
+        return (Page<ResultType>) DynamicQueryManager.getEntityListBySelectableFilterWithReturnType(repositoryExecutor, dynamicQuery, resultTypeClass, true, context);
     }
 
-    protected static <Entity, ResultType> Iterable<ResultType> getEntityListBySelectableFilterWithReturnType(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass, boolean isPage) {
+    protected static <Entity, ResultType> Iterable<ResultType> getEntityListBySelectableFilterWithReturnType(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass, boolean isPage, RepositoryContext context) {
         Class<Entity> entityClass = getEntityClass(repositoryExecutor);
         if (resultTypeClass.equals(entityClass) && CollectionUtils.isEmpty(dynamicQuery.getSelect())) {
-            return getEntityListWithReturnClass(repositoryExecutor, dynamicQuery, resultTypeClass, isPage);
+            return getEntityListWithReturnClass(repositoryExecutor, dynamicQuery, resultTypeClass, isPage, context);
         } else {
             extractIfJdqModel(dynamicQuery, resultTypeClass);
-            Iterable<Tuple> entityListBySelectableFilter = getEntityListWithReturnClass(repositoryExecutor, dynamicQuery, Tuple.class, isPage);
+            Iterable<Tuple> entityListBySelectableFilter = getEntityListWithReturnClass(repositoryExecutor, dynamicQuery, Tuple.class, isPage, context);
 
             if (!CollectionUtils.isEmpty(dynamicQuery.getSelect())) {
                 return convertResultToResultTypeList(dynamicQuery.getSelect(), resultTypeClass, entityListBySelectableFilter, isPage);
@@ -217,13 +216,13 @@ public class DynamicQueryManager {
         return collect;
     }
 
-    protected static <Entity, ResultType> Iterable<ResultType> getEntityListWithReturnClass(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass, boolean isPage) {
+    protected static <Entity, ResultType> Iterable<ResultType> getEntityListWithReturnClass(JpaSpecificationExecutor<Entity> repositoryExecutor, DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass, boolean isPage, RepositoryContext context) {
         Class<Entity> entityClass = getEntityClass(repositoryExecutor);
-        EntityManager entityManager = ApplicationContextUtil.getEntityManager();
+        EntityManager entityManager = context.getEntityManager();
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<ResultType> query = builder.createQuery(resultTypeClass);
         Root<Entity> root = query.from(entityClass);
-        DynamicSpecification<Entity> specification = new DynamicSpecification<>(dynamicQuery.getWhere());
+        DynamicSpecification<Entity> specification = new DynamicSpecification<>(dynamicQuery.getWhere(), context);
         Pageable pageable = Pageable.unpaged();
 
         query.distinct(dynamicQuery.isDistinct());
@@ -275,19 +274,19 @@ public class DynamicQueryManager {
 
         if (isPage) {
             return PageableExecutionUtils.getPage(typedQuery.getResultList(), pageable,
-                    () -> executeCountQuery(getCountQuery(specification, entityClass)));
+                    () -> executeCountQuery(getCountQuery(specification, entityClass, context)));
         } else {
             return typedQuery.getResultList();
         }
     }
 
 
-    protected static <S> TypedQuery<Long> getCountQuery(@Nullable Specification<S> spec, Class<S> domainClass) {
-        EntityManager entityManager = ApplicationContextUtil.getEntityManager();
+    protected static <S> TypedQuery<Long> getCountQuery(@Nullable Specification<S> spec, Class<S> domainClass, RepositoryContext context) {
+        EntityManager entityManager = context.getEntityManager();
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> query = builder.createQuery(Long.class);
 
-        Root<S> root = applySpecificationToCriteria(spec, domainClass, query);
+        Root<S> root = applySpecificationToCriteria(spec, domainClass, query, context);
 
         if (query.isDistinct()) {
             query.select(builder.countDistinct(root));
@@ -302,11 +301,11 @@ public class DynamicQueryManager {
     }
 
     protected static <S, U> Root<U> applySpecificationToCriteria(@Nullable Specification<U> spec, Class<U> domainClass,
-                                                                 CriteriaQuery<S> query) {
+                                                                 CriteriaQuery<S> query, RepositoryContext context) {
 
         Assert.notNull(domainClass, "Domain class must not be null!");
         Assert.notNull(query, "CriteriaQuery must not be null!");
-        EntityManager entityManager = ApplicationContextUtil.getEntityManager();
+        EntityManager entityManager = context.getEntityManager();
         Root<U> root = query.from(domainClass);
 
         if (spec == null) {
@@ -446,8 +445,8 @@ public class DynamicQueryManager {
         Class<Entity> entityClass = (Class<Entity>) GenericTypeResolver.resolveTypeArgument(repositoryExecutor.getClass(), JpaSpecificationExecutor.class);
         if (Objects.nonNull(entityClass)) {
             return entityClass;
-        } else if (repositoryExecutor instanceof DynamicSpecificationRepositoryImpl) {
-            return ((DynamicSpecificationRepositoryImpl) repositoryExecutor).getDomainClass();
+        } else if (repositoryExecutor instanceof JpaDynamicQueryRepositoryImpl) {
+            return ((JpaDynamicQueryRepositoryImpl) repositoryExecutor).getDomainClass();
         } else {
             throw new IllegalStateException("Entity Class Type Detection Failed!");
         }

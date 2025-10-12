@@ -98,7 +98,7 @@ You can find the sample code from: https://github.com/tdilber/spring-jpa-dynamic
 <dependency>
     <groupId>io.github.tdilber</groupId>
     <artifactId>spring-jpa-dynamic-query</artifactId>
-    <version>0.6.1</version>
+    <version>0.7.0</version>
 </dependency>
 ```
 

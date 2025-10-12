@@ -4,6 +4,7 @@ import com.beyt.jdq.BaseTestInstance;
 import com.beyt.jdq.TestApplication;
 import com.beyt.jdq.dto.Criteria;
 import com.beyt.jdq.dto.CriteriaList;
+import com.beyt.jdq.dto.DynamicQuery;
 import com.beyt.jdq.dto.enums.CriteriaOperator;
 import com.beyt.jdq.testenv.entity.User;
 import com.beyt.jdq.testenv.entity.school.Course;
@@ -19,10 +20,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 
+import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Slf4j
@@ -45,6 +48,12 @@ public class S1_Operators extends BaseTestInstance {
 //GREATER_THAN_OR_EQUAL
 //LESS_THAN
 //LESS_THAN_OR_EQUAL
+
+
+    @PostConstruct
+    public void postConstructTest() {
+        assertDoesNotThrow(() -> courseRepository.findAll(CriteriaList.of(Criteria.of("id", CriteriaOperator.GREATER_THAN, 0))));
+    }
 
     @Test
     public void contain() {

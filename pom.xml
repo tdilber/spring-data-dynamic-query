@@ -13,7 +13,7 @@
 
     <groupId>io.github.tdilber</groupId>
     <artifactId>spring-jpa-dynamic-query</artifactId>
-    <version>0.6.1</version>
+    <version>0.7.0</version>
     <packaging>jar</packaging>
     <name>Spring Jpa Dynamic Query</name>
     <description>Spring Jpa Dynamic Query (JDQ) Project</description>

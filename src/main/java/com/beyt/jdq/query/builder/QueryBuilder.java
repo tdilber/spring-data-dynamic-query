@@ -2,9 +2,8 @@ package com.beyt.jdq.query.builder;
 
 import com.beyt.jdq.dto.Criteria;
 import com.beyt.jdq.dto.DynamicQuery;
-import com.beyt.jdq.query.DynamicQueryManager;
 import com.beyt.jdq.query.builder.interfaces.*;
-import com.beyt.jdq.repository.DynamicSpecificationRepository;
+import com.beyt.jdq.repository.JpaDynamicQueryRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.util.Pair;
 
@@ -13,11 +12,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class QueryBuilder<T, ID> implements DistinctWhereOrderByPage<T, ID>, WhereOrderByPage<T, ID>, OrderByPage<T, ID>, PageableResult<T, ID>, Result<T, ID> {
-    protected final DynamicSpecificationRepository<T, ID> dynamicSpecificationRepository;
+    protected final JpaDynamicQueryRepository<T, ID> jpaDynamicQueryRepository;
     protected final DynamicQuery dynamicQuery;
 
-    public QueryBuilder(DynamicSpecificationRepository<T, ID> dynamicSpecificationRepository) {
-        this.dynamicSpecificationRepository = dynamicSpecificationRepository;
+    public QueryBuilder(JpaDynamicQueryRepository<T, ID> jpaDynamicQueryRepository) {
+        this.jpaDynamicQueryRepository = jpaDynamicQueryRepository;
         dynamicQuery = new DynamicQuery();
     }
 
@@ -50,18 +49,18 @@ public class QueryBuilder<T, ID> implements DistinctWhereOrderByPage<T, ID>, Whe
     }
 
     public List<T> getResult() {
-        return DynamicQueryManager.getEntityListBySelectableFilterAsList(dynamicSpecificationRepository, dynamicQuery);
+        return jpaDynamicQueryRepository.findAll(dynamicQuery);
     }
 
     public <ResultValue> List<ResultValue> getResult(Class<ResultValue> resultValueClass) {
-        return DynamicQueryManager.getEntityListBySelectableFilterWithReturnTypeAsList(dynamicSpecificationRepository, dynamicQuery, resultValueClass);
+        return jpaDynamicQueryRepository.findAll(dynamicQuery, resultValueClass);
     }
 
     public Page<T> getResultAsPage() {
-        return DynamicQueryManager.getEntityListBySelectableFilterAsPage(dynamicSpecificationRepository, dynamicQuery);
+        return jpaDynamicQueryRepository.findAllAsPage(dynamicQuery);
     }
 
     public <ResultValue> Page<ResultValue> getResultAsPage(Class<ResultValue> resultValueClass) {
-        return DynamicQueryManager.getEntityListBySelectableFilterWithReturnTypeAsPage(dynamicSpecificationRepository, dynamicQuery, resultValueClass);
+        return jpaDynamicQueryRepository.findAllAsPage(dynamicQuery, resultValueClass);
     }
 }
