@@ -1,7 +1,5 @@
 package com.beyt.jdq.util.field.helper;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -9,7 +7,6 @@ import java.time.ZonedDateTime;
 /**
  * Created by tdilber at 11/17/2020
  */
-@Slf4j
 public class ZonedDateTimeFieldHelper implements IFieldHelper<ZonedDateTime> {
     @Override
     public ZonedDateTime fillRandom() {

@@ -1,6 +1,5 @@
 package com.beyt.jdq.util.field.helper;
 
-import lombok.extern.slf4j.Slf4j;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -10,7 +9,6 @@ import java.util.Date;
 /**
  * Created by tdilber at 11/17/2020
  */
-@Slf4j
 public class DateFieldHelper implements IFieldHelper<Date> {
     @Override
     public Date fillRandom() {

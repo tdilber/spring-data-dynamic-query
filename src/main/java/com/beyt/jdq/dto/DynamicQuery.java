@@ -1,7 +1,6 @@
 package com.beyt.jdq.dto;
 
 import com.beyt.jdq.dto.enums.Order;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.util.Pair;
 
 import java.io.Serializable;
@@ -11,7 +10,6 @@ import java.util.List;
 /**
  * Created by tdilber at 30-Dec-20
  */
-@Slf4j
 public class DynamicQuery implements Serializable {
 
     protected boolean distinct = false;
@@ -20,6 +18,13 @@ public class DynamicQuery implements Serializable {
     protected List<Pair<String, String>> select = new ArrayList<>();
     protected List<Criteria> where = new CriteriaList();
     protected List<Pair<String, Order>> orderBy = new ArrayList<>();
+
+
+    public static DynamicQuery of(List<Criteria> where) {
+        DynamicQuery dynamicQuery = new DynamicQuery();
+        dynamicQuery.getWhere().addAll(where);
+        return dynamicQuery;
+    }
 
     public boolean isDistinct() {
         return distinct;

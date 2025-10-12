@@ -15,10 +15,6 @@ import com.beyt.jdq.testenv.entity.school.Student;
 import com.beyt.jdq.testenv.repository.CourseRepository;
 import com.beyt.jdq.testenv.repository.StudentRepository;
 import com.beyt.jdq.util.PresentationUtil;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,19 +42,30 @@ public class S7_Select_Distinct_Order extends BaseTestInstance {
         DynamicQuery dynamicQuery = new DynamicQuery();
         dynamicQuery.getSelect().add(Pair.of("name", "name"));
         dynamicQuery.getSelect().add(Pair.of("description", "description"));
-        dynamicQuery.setWhere(CriteriaList.of(Criteria.of(Course.Fields.id, CriteriaOperator.GREATER_THAN, 8)));
+        dynamicQuery.setWhere(CriteriaList.of(Criteria.of("id", CriteriaOperator.GREATER_THAN, 8)));
         PresentationUtil.prettyPrint(dynamicQuery);
         List<Course> courseList = courseRepository.findAll(dynamicQuery);
         PresentationUtil.prettyPrint(courseList);
         assertEquals(List.of(Course.of(course9.getName(), course9.getDescription()), Course.of(course10.getName(), course10.getDescription())), courseList);
     }
 
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class CourseName {
-        @Getter
-        @Setter
         private String name;
+
+        public CourseName() {
+        }
+
+        public CourseName(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
 
         @Override
         public boolean equals(Object o) {
@@ -80,7 +87,7 @@ public class S7_Select_Distinct_Order extends BaseTestInstance {
     public void selectDifferentObject() {
         DynamicQuery dynamicQuery = new DynamicQuery();
         dynamicQuery.getSelect().add(Pair.of("name", "name"));
-        dynamicQuery.setWhere(CriteriaList.of(Criteria.of(Course.Fields.id, CriteriaOperator.GREATER_THAN, 8)));
+        dynamicQuery.setWhere(CriteriaList.of(Criteria.of("id", CriteriaOperator.GREATER_THAN, 8)));
         PresentationUtil.prettyPrint(dynamicQuery);
         List<CourseName> courseList = courseRepository.findAll(dynamicQuery, CourseName.class);
         PresentationUtil.prettyPrint(courseList);
@@ -95,7 +102,7 @@ public class S7_Select_Distinct_Order extends BaseTestInstance {
     public void selectDifferentObjectDifferent() {
         DynamicQuery dynamicQuery = new DynamicQuery();
         dynamicQuery.getSelect().add(Pair.of("description", "name"));
-        dynamicQuery.setWhere(CriteriaList.of(Criteria.of(Course.Fields.id, CriteriaOperator.GREATER_THAN, 8)));
+        dynamicQuery.setWhere(CriteriaList.of(Criteria.of("id", CriteriaOperator.GREATER_THAN, 8)));
         PresentationUtil.prettyPrint(dynamicQuery);
         List<CourseName> courseList = courseRepository.findAll(dynamicQuery, CourseName.class);
         PresentationUtil.prettyPrint(courseList);
@@ -110,7 +117,7 @@ public class S7_Select_Distinct_Order extends BaseTestInstance {
     public void selectDifferentEntityObject() {
         DynamicQuery dynamicQuery = new DynamicQuery();
         dynamicQuery.getSelect().add(Pair.of("description", "name"));
-        dynamicQuery.setWhere(CriteriaList.of(Criteria.of(Course.Fields.id, CriteriaOperator.GREATER_THAN, 8)));
+        dynamicQuery.setWhere(CriteriaList.of(Criteria.of("id", CriteriaOperator.GREATER_THAN, 8)));
         PresentationUtil.prettyPrint(dynamicQuery);
         List<Student> courseList = courseRepository.findAll(dynamicQuery, Student.class);
         PresentationUtil.prettyPrint(courseList);
@@ -134,7 +141,7 @@ public class S7_Select_Distinct_Order extends BaseTestInstance {
     @Test
     public void orderBy() {
         DynamicQuery dynamicQuery = new DynamicQuery();
-        dynamicQuery.setOrderBy(List.of(Pair.of(Course.Fields.id, Order.DESC)));
+        dynamicQuery.setOrderBy(List.of(Pair.of("id", Order.DESC)));
         PresentationUtil.prettyPrint(dynamicQuery);
         List<Course> courseList = courseRepository.findAll(dynamicQuery);
         PresentationUtil.prettyPrint(courseList);
@@ -145,7 +152,7 @@ public class S7_Select_Distinct_Order extends BaseTestInstance {
     @Test
     public void orderByMulti() {
         DynamicQuery dynamicQuery = new DynamicQuery();
-        dynamicQuery.setOrderBy(List.of(Pair.of(Course.Fields.maxStudentCount, Order.DESC), Pair.of(Course.Fields.id, Order.DESC)));
+        dynamicQuery.setOrderBy(List.of(Pair.of("maxStudentCount", Order.DESC), Pair.of("id", Order.DESC)));
         PresentationUtil.prettyPrint(dynamicQuery);
         List<Course> courseList = courseRepository.findAll(dynamicQuery);
         PresentationUtil.prettyPrint(courseList);
@@ -155,7 +162,7 @@ public class S7_Select_Distinct_Order extends BaseTestInstance {
     @Test
     public void page() {
         DynamicQuery dynamicQuery = new DynamicQuery();
-        dynamicQuery.setWhere(CriteriaList.of(Criteria.of(Course.Fields.id, CriteriaOperator.GREATER_THAN, 3)));
+        dynamicQuery.setWhere(CriteriaList.of(Criteria.of("id", CriteriaOperator.GREATER_THAN, 3)));
         dynamicQuery.setPageSize(2);
         dynamicQuery.setPageNumber(1);
         System.out.println("Page");

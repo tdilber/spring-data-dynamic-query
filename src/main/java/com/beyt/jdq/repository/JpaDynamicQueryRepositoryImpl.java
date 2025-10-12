@@ -1,8 +1,10 @@
 package com.beyt.jdq.repository;
 
+import com.beyt.jdq.deserializer.IDeserializer;
 import com.beyt.jdq.dto.Criteria;
 import com.beyt.jdq.dto.DynamicQuery;
 import com.beyt.jdq.query.DynamicQueryManager;
+import com.beyt.jdq.query.RepositoryContext;
 import com.beyt.jdq.query.builder.QueryBuilder;
 import com.beyt.jdq.util.ListConsumer;
 import org.springframework.data.domain.Page;
@@ -13,58 +15,69 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.support.JpaEntityInformation;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
-import org.springframework.data.repository.NoRepositoryBean;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.io.Serializable;
 import java.util.List;
 
-@NoRepositoryBean
-public class DynamicSpecificationRepositoryImpl<T, ID extends Serializable> extends SimpleJpaRepository<T, ID> implements DynamicSpecificationRepository<T, ID>, JpaRepository<T, ID>, JpaSpecificationExecutor<T> {
 
-    private final EntityManager entityManager;
+@Transactional(
+        readOnly = true
+)
+public class JpaDynamicQueryRepositoryImpl<T, ID extends Serializable> extends SimpleJpaRepository<T, ID> implements JpaDynamicQueryRepository<T, ID>, JpaRepository<T, ID>, JpaSpecificationExecutor<T> {
 
-    public DynamicSpecificationRepositoryImpl(JpaEntityInformation<T, ?> entityInformation,
-                                              EntityManager entityManager) {
+    protected final EntityManager entityManager;
+    protected final IDeserializer deserializer;
+    protected final RepositoryContext context;
+
+    public JpaDynamicQueryRepositoryImpl(JpaEntityInformation<T, ?> entityInformation,
+                                         EntityManager entityManager, IDeserializer deserializer) {
 
         super(entityInformation, entityManager);
         this.entityManager = entityManager;
+        this.deserializer = deserializer;
+        this.context = new RepositoryContext(entityManager, this.deserializer);
+    }
+
+    private RepositoryContext getQueryContext() {
+        return context;
     }
 
     @Override
     public List<T> findAll(List<Criteria> criteriaList) {
-        return DynamicQueryManager.findAll(this, criteriaList);
+        return DynamicQueryManager.findAll(this, criteriaList, getQueryContext());
     }
 
     @Override
     public List<T> findAll(DynamicQuery dynamicQuery) {
-        return DynamicQueryManager.getEntityListBySelectableFilterAsList(this, dynamicQuery);
+        return DynamicQueryManager.getEntityListBySelectableFilterAsList(this, dynamicQuery, getQueryContext());
     }
 
     @Override
     public Page<T> findAllAsPage(DynamicQuery dynamicQuery) {
-        return DynamicQueryManager.getEntityListBySelectableFilterAsPage(this, dynamicQuery);
+        return DynamicQueryManager.getEntityListBySelectableFilterAsPage(this, dynamicQuery, getQueryContext());
     }
 
     @Override
     public List<Tuple> findAllAsTuple(DynamicQuery dynamicQuery) {
-        return DynamicQueryManager.getEntityListBySelectableFilterWithTupleAsList(this, dynamicQuery);
+        return DynamicQueryManager.getEntityListBySelectableFilterWithTupleAsList(this, dynamicQuery, getQueryContext());
     }
 
     @Override
     public Page<Tuple> findAllAsTuplePage(DynamicQuery dynamicQuery) {
-        return DynamicQueryManager.getEntityListBySelectableFilterWithTupleAsPage(this, dynamicQuery);
+        return DynamicQueryManager.getEntityListBySelectableFilterWithTupleAsPage(this, dynamicQuery, getQueryContext());
     }
 
     @Override
     public <ResultType> List<ResultType> findAll(DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass) {
-        return DynamicQueryManager.getEntityListBySelectableFilterWithReturnTypeAsList(this, dynamicQuery, resultTypeClass);
+        return DynamicQueryManager.getEntityListBySelectableFilterWithReturnTypeAsList(this, dynamicQuery, resultTypeClass, getQueryContext());
     }
 
     @Override
     public <ResultType> Page<ResultType> findAllAsPage(DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass) {
-        return DynamicQueryManager.getEntityListBySelectableFilterWithReturnTypeAsPage(this, dynamicQuery, resultTypeClass);
+        return DynamicQueryManager.getEntityListBySelectableFilterWithReturnTypeAsPage(this, dynamicQuery, resultTypeClass, getQueryContext());
     }
 
     @Override
@@ -74,11 +87,11 @@ public class DynamicSpecificationRepositoryImpl<T, ID extends Serializable> exte
 
     @Override
     public Page<T> findAll(List<Criteria> criteriaList, Pageable pageable) {
-        return DynamicQueryManager.findAll(this, criteriaList, pageable);
+        return DynamicQueryManager.findAll(this, criteriaList, pageable, getQueryContext());
     }
 
-    static <T> Specification<T> getSpecificationWithCriteria(List<Criteria> criteriaList) {
-        return DynamicQueryManager.getSpecification(criteriaList);
+    static <T> Specification<T> getSpecificationWithCriteria(List<Criteria> criteriaList, RepositoryContext context) {
+        return DynamicQueryManager.getSpecification(criteriaList, context);
     }
 
     public Class<T> getDomainClass() {
@@ -87,7 +100,7 @@ public class DynamicSpecificationRepositoryImpl<T, ID extends Serializable> exte
 
     @Override
     public long count(List<Criteria> criteriaList) {
-        return DynamicQueryManager.count(this, criteriaList);
+        return DynamicQueryManager.count(this, criteriaList, getQueryContext());
     }
 
     @Override
@@ -108,10 +121,10 @@ public class DynamicSpecificationRepositoryImpl<T, ID extends Serializable> exte
 
     @Override
     public void consumePartially(List<Criteria> criteriaList, ListConsumer<T> processor, int pageSize) {
-        long totalElements = DynamicQueryManager.count(this, criteriaList);
+        long totalElements = DynamicQueryManager.count(this, criteriaList, getQueryContext());
 
         for (int i = 0; (long) i * pageSize < totalElements; i++) {
-            processor.accept(DynamicQueryManager.findAll(this, criteriaList, PageRequest.of(i, pageSize)).getContent());
+            processor.accept(DynamicQueryManager.findAll(this, criteriaList, PageRequest.of(i, pageSize), getQueryContext()).getContent());
         }
     }
 }

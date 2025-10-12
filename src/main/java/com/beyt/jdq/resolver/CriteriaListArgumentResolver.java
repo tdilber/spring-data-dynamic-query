@@ -38,7 +38,7 @@ public class CriteriaListArgumentResolver implements HandlerMethodArgumentResolv
             String values = webRequest.getParameter(valuesField);
             if (key != null && operation != null && values != null) {
                 Criteria criteria = new Criteria(key, CriteriaOperator.valueOf(operation), null);
-                criteria.setValues(Arrays.asList(values.split(",")));
+                criteria.setValues(Arrays.asList(values));
                 filter.add(criteria);
             } else {
                 break;

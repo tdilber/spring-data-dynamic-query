@@ -1,7 +1,6 @@
 package com.beyt.jdq.interceptor;
 
 import com.beyt.jdq.context.DBSelectionContext;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.method.HandlerMethod;
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.lang.reflect.Method;
 
-@Slf4j
 public class DatabaseSelectionInterceptor implements HandlerInterceptor {
 
     @Autowired

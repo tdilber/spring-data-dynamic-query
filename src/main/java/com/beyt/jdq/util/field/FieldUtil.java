@@ -1,8 +1,8 @@
 package com.beyt.jdq.util.field;
 
 import com.beyt.jdq.util.field.helper.*;
-import lombok.extern.slf4j.Slf4j;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -14,7 +14,6 @@ import java.sql.Timestamp;
 /**
  * Created by tdilber at 11/17/2020
  */
-@Slf4j
 public final class FieldUtil {
     private FieldUtil() {
 
@@ -33,6 +32,7 @@ public final class FieldUtil {
         fieldHelperMap.put(ZonedDateTime.class, new ZonedDateTimeFieldHelper());
         fieldHelperMap.put(Instant.class, new InstantFieldHelper());
         fieldHelperMap.put(Integer.class, new IntegerFieldHelper());
+        fieldHelperMap.put(BigDecimal.class, new BigDecimalFieldHelper());
     }
 
     private static IFieldHelper<?> getFieldHelper(Class<?> fieldType) {

@@ -5,10 +5,6 @@ import com.beyt.jdq.TestApplication;
 import com.beyt.jdq.dto.enums.Order;
 import com.beyt.jdq.testenv.repository.AdminUserRepository;
 import com.beyt.jdq.util.PresentationUtil;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,18 +26,83 @@ public class S9_Query_Builder extends BaseTestInstance {
     private @Autowired AdminUserRepository adminUserRepository;
 
 
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class AuthorizationSummary {
-        @Getter
-        @Setter
         private Long adminId;
-        @Getter @Setter private String adminUsername;
-        @Getter @Setter private Long roleId;
-        @Getter @Setter private String roleName;
-        @Getter @Setter private Long authorizationId;
-        @Getter @Setter private String authorizationName;
-        @Getter @Setter private String menuIcon;
+        private String adminUsername;
+        private Long roleId;
+        private String roleName;
+        private Long authorizationId;
+        private String authorizationName;
+        private String menuIcon;
+
+        public AuthorizationSummary() {
+        }
+
+        public AuthorizationSummary(Long adminId, String adminUsername, Long roleId, String roleName, Long authorizationId, String authorizationName, String menuIcon) {
+            this.adminId = adminId;
+            this.adminUsername = adminUsername;
+            this.roleId = roleId;
+            this.roleName = roleName;
+            this.authorizationId = authorizationId;
+            this.authorizationName = authorizationName;
+            this.menuIcon = menuIcon;
+        }
+
+        public Long getAdminId() {
+            return adminId;
+        }
+
+        public void setAdminId(Long adminId) {
+            this.adminId = adminId;
+        }
+
+        public String getAdminUsername() {
+            return adminUsername;
+        }
+
+        public void setAdminUsername(String adminUsername) {
+            this.adminUsername = adminUsername;
+        }
+
+        public Long getRoleId() {
+            return roleId;
+        }
+
+        public void setRoleId(Long roleId) {
+            this.roleId = roleId;
+        }
+
+        public String getRoleName() {
+            return roleName;
+        }
+
+        public void setRoleName(String roleName) {
+            this.roleName = roleName;
+        }
+
+        public Long getAuthorizationId() {
+            return authorizationId;
+        }
+
+        public void setAuthorizationId(Long authorizationId) {
+            this.authorizationId = authorizationId;
+        }
+
+        public String getAuthorizationName() {
+            return authorizationName;
+        }
+
+        public void setAuthorizationName(String authorizationName) {
+            this.authorizationName = authorizationName;
+        }
+
+        public String getMenuIcon() {
+            return menuIcon;
+        }
+
+        public void setMenuIcon(String menuIcon) {
+            this.menuIcon = menuIcon;
+        }
 
         @Override
         public boolean equals(Object o) {

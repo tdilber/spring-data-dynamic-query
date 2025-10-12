@@ -13,7 +13,7 @@
 
     <groupId>io.github.tdilber</groupId>
     <artifactId>spring-boot-starter-jpa-dynamic-query</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
     <packaging>jar</packaging>
     <name>Spring Jpa Dynamic Query</name>
     <description>Spring Jpa Dynamic Query (JDQ) Project</description>
@@ -78,11 +78,6 @@
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-core</artifactId>
             <version>${hibernate.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

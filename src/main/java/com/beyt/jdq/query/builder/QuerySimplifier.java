@@ -4,9 +4,6 @@ import com.beyt.jdq.dto.Criteria;
 import com.beyt.jdq.dto.enums.CriteriaOperator;
 import com.beyt.jdq.dto.enums.Order;
 import com.beyt.jdq.query.DynamicSpecification;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.util.Arrays;
 
@@ -33,20 +30,78 @@ public class QuerySimplifier {
         return new SelectRule(fieldName, DynamicSpecification.getFieldName(fieldName));
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class OrderByRule {
         private String fieldName;
         private Order orderType;
+
+        public OrderByRule() {
+        }
+
+        public OrderByRule(String fieldName, Order orderType) {
+            this.fieldName = fieldName;
+            this.orderType = orderType;
+        }
+
+        public String getFieldName() {
+            return fieldName;
+        }
+
+        public void setFieldName(String fieldName) {
+            this.fieldName = fieldName;
+        }
+
+        public Order getOrderType() {
+            return orderType;
+        }
+
+        public void setOrderType(Order orderType) {
+            this.orderType = orderType;
+        }
+
+        @Override
+        public String toString() {
+            return "OrderByRule{" +
+                    "fieldName='" + fieldName + '\'' +
+                    ", orderType=" + orderType +
+                    '}';
+        }
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class SelectRule {
         private String fieldName;
         private String alias;
+
+        public SelectRule() {
+        }
+
+        public SelectRule(String fieldName, String alias) {
+            this.fieldName = fieldName;
+            this.alias = alias;
+        }
+
+        public String getFieldName() {
+            return fieldName;
+        }
+
+        public void setFieldName(String fieldName) {
+            this.fieldName = fieldName;
+        }
+
+        public String getAlias() {
+            return alias;
+        }
+
+        public void setAlias(String alias) {
+            this.alias = alias;
+        }
+
+        @Override
+        public String toString() {
+            return "SelectRule{" +
+                    "fieldName='" + fieldName + '\'' +
+                    ", alias='" + alias + '\'' +
+                    '}';
+        }
     }
 
     public static class Field {

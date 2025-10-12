@@ -2,8 +2,6 @@ package com.beyt.jdq.dto;
 
 
 import com.beyt.jdq.dto.enums.CriteriaOperator;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -13,8 +11,6 @@ import java.util.List;
 /**
  * Created by tdilber at 24-Aug-19
  */
-@Getter
-@Setter
 public class Criteria implements Serializable {
     protected String key;
     protected CriteriaOperator operation;
@@ -40,6 +36,30 @@ public class Criteria implements Serializable {
 
     public Criteria() {
 
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+    public CriteriaOperator getOperation() {
+        return operation;
+    }
+
+    public void setOperation(CriteriaOperator operation) {
+        this.operation = operation;
+    }
+
+    public List<Object> getValues() {
+        return values;
+    }
+
+    public void setValues(List<Object> values) {
+        this.values = values;
     }
 
     @Override

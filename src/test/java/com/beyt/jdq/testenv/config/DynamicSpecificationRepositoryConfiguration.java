@@ -1,11 +1,12 @@
 package com.beyt.jdq.testenv.config;
 
-import com.beyt.jdq.repository.DynamicSpecificationRepositoryFactoryBean;
+import com.beyt.jdq.annotation.EnableJpaDynamicQuery;
+import com.beyt.jdq.repository.JpaDynamicQueryRepositoryImpl;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @Configuration
-@EnableJpaRepositories(repositoryFactoryBeanClass = DynamicSpecificationRepositoryFactoryBean.class, basePackages = "com.beyt.jdq.testenv.repository")
+@EnableJpaDynamicQuery
 public class DynamicSpecificationRepositoryConfiguration {
 
 }

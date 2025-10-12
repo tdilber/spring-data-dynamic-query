@@ -13,7 +13,6 @@ import com.beyt.jdq.dto.enums.Order;
 import com.beyt.jdq.exception.DynamicQueryNoAvailableOrOperationUsageException;
 import com.beyt.jdq.testenv.entity.Customer;
 import com.beyt.jdq.testenv.entity.User;
-import lombok.*;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -27,6 +26,7 @@ import jakarta.persistence.Tuple;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Objects;
 
 import static com.beyt.jdq.query.builder.QuerySimplifier.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -224,10 +224,7 @@ class DynamicQueryManagerTest extends BaseTestInstance {
         List<Customer> allWithSearchQuery4 = customerRepository.findAll(dynamicQuery2, Customer.class);
     }
 
-    @Data
     @JdqModel
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class UserJdqModel {
         @JdqField("name")
         private String nameButDifferentFieldName;
@@ -237,6 +234,60 @@ class DynamicQueryManagerTest extends BaseTestInstance {
         private Integer age;
         @JdqIgnoreField
         private String surname;
+
+        public UserJdqModel() {
+        }
+
+        public UserJdqModel(String nameButDifferentFieldName, String userNameWithJoin, Integer age, String surname) {
+            this.nameButDifferentFieldName = nameButDifferentFieldName;
+            this.userNameWithJoin = userNameWithJoin;
+            this.age = age;
+            this.surname = surname;
+        }
+
+        public String getNameButDifferentFieldName() {
+            return nameButDifferentFieldName;
+        }
+
+        public void setNameButDifferentFieldName(String nameButDifferentFieldName) {
+            this.nameButDifferentFieldName = nameButDifferentFieldName;
+        }
+
+        public String getUserNameWithJoin() {
+            return userNameWithJoin;
+        }
+
+        public void setUserNameWithJoin(String userNameWithJoin) {
+            this.userNameWithJoin = userNameWithJoin;
+        }
+
+        public Integer getAge() {
+            return age;
+        }
+
+        public void setAge(Integer age) {
+            this.age = age;
+        }
+
+        public String getSurname() {
+            return surname;
+        }
+
+        public void setSurname(String surname) {
+            this.surname = surname;
+        }
+
+        @Override
+        public boolean equals(Object object) {
+            if (object == null || getClass() != object.getClass()) return false;
+            UserJdqModel that = (UserJdqModel) object;
+            return Objects.equals(nameButDifferentFieldName, that.nameButDifferentFieldName) && Objects.equals(userNameWithJoin, that.userNameWithJoin) && Objects.equals(age, that.age) && Objects.equals(surname, that.surname);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(nameButDifferentFieldName, userNameWithJoin, age, surname);
+        }
     }
 
     @Test
@@ -308,9 +359,22 @@ class DynamicQueryManagerTest extends BaseTestInstance {
     }
 
     public static class UserName {
-        @Getter
-        @Setter
         private String name;
+
+        public UserName() {
+        }
+
+        public UserName(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
     }
 
     @Test

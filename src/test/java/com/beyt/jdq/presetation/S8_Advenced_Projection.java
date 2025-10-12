@@ -12,7 +12,6 @@ import com.beyt.jdq.dto.enums.CriteriaOperator;
 import com.beyt.jdq.testenv.entity.authorization.AdminUser;
 import com.beyt.jdq.testenv.repository.AdminUserRepository;
 import com.beyt.jdq.util.PresentationUtil;
-import lombok.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,32 +31,102 @@ public class S8_Advenced_Projection extends BaseTestInstance {
     private @Autowired AdminUserRepository adminUserRepository;
 
 
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @EqualsAndHashCode
     public static class AuthorizationSummary {
-        @Getter
-        @Setter
         private Long adminId;
-        @Getter
-        @Setter
         private String adminUsername;
-        @Getter
-        @Setter
         private Long roleId;
-        @Getter
-        @Setter
         private String roleName;
-        @Getter
-        @Setter
         private Long authorizationId;
-        @Getter
-        @Setter
         private String authorizationName;
-        @Getter
-        @Setter
         private String menuIcon;
 
+        public AuthorizationSummary() {
+        }
+
+        public AuthorizationSummary(Long adminId, String adminUsername, Long roleId, String roleName, Long authorizationId, String authorizationName, String menuIcon) {
+            this.adminId = adminId;
+            this.adminUsername = adminUsername;
+            this.roleId = roleId;
+            this.roleName = roleName;
+            this.authorizationId = authorizationId;
+            this.authorizationName = authorizationName;
+            this.menuIcon = menuIcon;
+        }
+
+        public Long getAdminId() {
+            return adminId;
+        }
+
+        public void setAdminId(Long adminId) {
+            this.adminId = adminId;
+        }
+
+        public String getAdminUsername() {
+            return adminUsername;
+        }
+
+        public void setAdminUsername(String adminUsername) {
+            this.adminUsername = adminUsername;
+        }
+
+        public Long getRoleId() {
+            return roleId;
+        }
+
+        public void setRoleId(Long roleId) {
+            this.roleId = roleId;
+        }
+
+        public String getRoleName() {
+            return roleName;
+        }
+
+        public void setRoleName(String roleName) {
+            this.roleName = roleName;
+        }
+
+        public Long getAuthorizationId() {
+            return authorizationId;
+        }
+
+        public void setAuthorizationId(Long authorizationId) {
+            this.authorizationId = authorizationId;
+        }
+
+        public String getAuthorizationName() {
+            return authorizationName;
+        }
+
+        public void setAuthorizationName(String authorizationName) {
+            this.authorizationName = authorizationName;
+        }
+
+        public String getMenuIcon() {
+            return menuIcon;
+        }
+
+        public void setMenuIcon(String menuIcon) {
+            this.menuIcon = menuIcon;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AuthorizationSummary)) return false;
+            AuthorizationSummary that = (AuthorizationSummary) o;
+            return Objects.equals(adminId, that.adminId) &&
+                    Objects.equals(adminUsername, that.adminUsername) &&
+                    Objects.equals(roleId, that.roleId) &&
+                    Objects.equals(roleName, that.roleName) &&
+                    Objects.equals(authorizationId, that.authorizationId) &&
+                    Objects.equals(authorizationName, that.authorizationName) &&
+                    Objects.equals(menuIcon, that.menuIcon);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(adminId, adminUsername, roleId, roleName, authorizationId, authorizationName, menuIcon);
+        }
     }
 
     @Test
@@ -89,39 +158,109 @@ public class S8_Advenced_Projection extends BaseTestInstance {
 
 
     @JdqModel // DONT MISS THIS ANNOTATION
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @EqualsAndHashCode
     public static class AnnotatedAuthorizationSummary {
         @JdqField("id")
-        @Getter
-        @Setter
         private Long adminId;
         @JdqField("username")
-        @Getter
-        @Setter
         private String adminUsername;
         @JdqField("roles.id")
-        @Getter
-        @Setter
         private Long roleId;
         @JdqField("roles.name")
-        @Getter
-        @Setter
         private String roleName;
         @JdqField("roles.roleAuthorizations.authorization.id")
-        @Getter
-        @Setter
         private Long authorizationId;
         @JdqField("roles.roleAuthorizations.authorization.name")
-        @Getter
-        @Setter
         private String authorizationName;
         @JdqField("roles.roleAuthorizations.authorization.menuIcon")
-        @Getter
-        @Setter
         private String menuIcon;
 
+        public AnnotatedAuthorizationSummary() {
+        }
+
+        public AnnotatedAuthorizationSummary(Long adminId, String adminUsername, Long roleId, String roleName, Long authorizationId, String authorizationName, String menuIcon) {
+            this.adminId = adminId;
+            this.adminUsername = adminUsername;
+            this.roleId = roleId;
+            this.roleName = roleName;
+            this.authorizationId = authorizationId;
+            this.authorizationName = authorizationName;
+            this.menuIcon = menuIcon;
+        }
+
+        public Long getAdminId() {
+            return adminId;
+        }
+
+        public void setAdminId(Long adminId) {
+            this.adminId = adminId;
+        }
+
+        public String getAdminUsername() {
+            return adminUsername;
+        }
+
+        public void setAdminUsername(String adminUsername) {
+            this.adminUsername = adminUsername;
+        }
+
+        public Long getRoleId() {
+            return roleId;
+        }
+
+        public void setRoleId(Long roleId) {
+            this.roleId = roleId;
+        }
+
+        public String getRoleName() {
+            return roleName;
+        }
+
+        public void setRoleName(String roleName) {
+            this.roleName = roleName;
+        }
+
+        public Long getAuthorizationId() {
+            return authorizationId;
+        }
+
+        public void setAuthorizationId(Long authorizationId) {
+            this.authorizationId = authorizationId;
+        }
+
+        public String getAuthorizationName() {
+            return authorizationName;
+        }
+
+        public void setAuthorizationName(String authorizationName) {
+            this.authorizationName = authorizationName;
+        }
+
+        public String getMenuIcon() {
+            return menuIcon;
+        }
+
+        public void setMenuIcon(String menuIcon) {
+            this.menuIcon = menuIcon;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AnnotatedAuthorizationSummary)) return false;
+            AnnotatedAuthorizationSummary that = (AnnotatedAuthorizationSummary) o;
+            return Objects.equals(adminId, that.adminId) &&
+                    Objects.equals(adminUsername, that.adminUsername) &&
+                    Objects.equals(roleId, that.roleId) &&
+                    Objects.equals(roleName, that.roleName) &&
+                    Objects.equals(authorizationId, that.authorizationId) &&
+                    Objects.equals(authorizationName, that.authorizationName) &&
+                    Objects.equals(menuIcon, that.menuIcon);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(adminId, adminUsername, roleId, roleName, authorizationId, authorizationName, menuIcon);
+        }
     }
 
     @Test
@@ -141,21 +280,62 @@ public class S8_Advenced_Projection extends BaseTestInstance {
 
 
     @JdqModel
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @EqualsAndHashCode
     public static class AnnotatedAuthorizationSummarySubModel {
         @JdqField("id")
-        @Getter
-        @Setter
         private Long adminId;
         @JdqField("username")
-        @Getter
-        @Setter
         private String adminUsername;
 
         @JdqSubModel("roles")
         private Role role;
+
+        public AnnotatedAuthorizationSummarySubModel() {
+        }
+
+        public AnnotatedAuthorizationSummarySubModel(Long adminId, String adminUsername, Role role) {
+            this.adminId = adminId;
+            this.adminUsername = adminUsername;
+            this.role = role;
+        }
+
+        public Long getAdminId() {
+            return adminId;
+        }
+
+        public void setAdminId(Long adminId) {
+            this.adminId = adminId;
+        }
+
+        public String getAdminUsername() {
+            return adminUsername;
+        }
+
+        public void setAdminUsername(String adminUsername) {
+            this.adminUsername = adminUsername;
+        }
+
+        public Role getRole() {
+            return role;
+        }
+
+        public void setRole(Role role) {
+            this.role = role;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AnnotatedAuthorizationSummarySubModel)) return false;
+            AnnotatedAuthorizationSummarySubModel that = (AnnotatedAuthorizationSummarySubModel) o;
+            return Objects.equals(adminId, that.adminId) &&
+                    Objects.equals(adminUsername, that.adminUsername) &&
+                    Objects.equals(role, that.role);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(adminId, adminUsername, role);
+        }
 
         @JdqModel
         public record Role(
@@ -198,16 +378,62 @@ public class S8_Advenced_Projection extends BaseTestInstance {
             @JdqField("username") String adminUsername,
             @JdqSubModel("roles") Role2 role) {
 
-        @Getter
-        @Setter
-        @NoArgsConstructor
-        @AllArgsConstructor
         @JdqModel
-        @EqualsAndHashCode
         public static class Role2 {
-            private @JdqField("id") Long roleId;
-            private @JdqField("name") String roleName;
-            private @JdqSubModel("roleAuthorizations") RoleAuthorization2 roleAuthorization;
+            @JdqField("id")
+            private Long roleId;
+            @JdqField("name")
+            private String roleName;
+            @JdqSubModel("roleAuthorizations")
+            private RoleAuthorization2 roleAuthorization;
+
+            public Role2() {
+            }
+
+            public Role2(Long roleId, String roleName, RoleAuthorization2 roleAuthorization) {
+                this.roleId = roleId;
+                this.roleName = roleName;
+                this.roleAuthorization = roleAuthorization;
+            }
+
+            public Long getRoleId() {
+                return roleId;
+            }
+
+            public void setRoleId(Long roleId) {
+                this.roleId = roleId;
+            }
+
+            public String getRoleName() {
+                return roleName;
+            }
+
+            public void setRoleName(String roleName) {
+                this.roleName = roleName;
+            }
+
+            public RoleAuthorization2 getRoleAuthorization() {
+                return roleAuthorization;
+            }
+
+            public void setRoleAuthorization(RoleAuthorization2 roleAuthorization) {
+                this.roleAuthorization = roleAuthorization;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof Role2)) return false;
+                Role2 role2 = (Role2) o;
+                return Objects.equals(roleId, role2.roleId) &&
+                        Objects.equals(roleName, role2.roleName) &&
+                        Objects.equals(roleAuthorization, role2.roleAuthorization);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(roleId, roleName, roleAuthorization);
+            }
 
 
             @JdqModel
@@ -242,16 +468,62 @@ public class S8_Advenced_Projection extends BaseTestInstance {
             @JdqField("username") String adminUsername,
             @JdqSubModel() Role3 role) { // empty sub model annotation
 
-        @Getter
-        @Setter
-        @NoArgsConstructor
-        @AllArgsConstructor
         @JdqModel
-        @EqualsAndHashCode
         public static class Role3 {
-            private @JdqField("roles.id") Long roleId;
-            private @JdqField("roles.name") String roleName;
-            private @JdqSubModel("roles.roleAuthorizations") RoleAuthorization3 roleAuthorization;
+            @JdqField("roles.id")
+            private Long roleId;
+            @JdqField("roles.name")
+            private String roleName;
+            @JdqSubModel("roles.roleAuthorizations")
+            private RoleAuthorization3 roleAuthorization;
+
+            public Role3() {
+            }
+
+            public Role3(Long roleId, String roleName, RoleAuthorization3 roleAuthorization) {
+                this.roleId = roleId;
+                this.roleName = roleName;
+                this.roleAuthorization = roleAuthorization;
+            }
+
+            public Long getRoleId() {
+                return roleId;
+            }
+
+            public void setRoleId(Long roleId) {
+                this.roleId = roleId;
+            }
+
+            public String getRoleName() {
+                return roleName;
+            }
+
+            public void setRoleName(String roleName) {
+                this.roleName = roleName;
+            }
+
+            public RoleAuthorization3 getRoleAuthorization() {
+                return roleAuthorization;
+            }
+
+            public void setRoleAuthorization(RoleAuthorization3 roleAuthorization) {
+                this.roleAuthorization = roleAuthorization;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof Role3)) return false;
+                Role3 role3 = (Role3) o;
+                return Objects.equals(roleId, role3.roleId) &&
+                        Objects.equals(roleName, role3.roleName) &&
+                        Objects.equals(roleAuthorization, role3.roleAuthorization);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(roleId, roleName, roleAuthorization);
+            }
 
 
             @JdqModel

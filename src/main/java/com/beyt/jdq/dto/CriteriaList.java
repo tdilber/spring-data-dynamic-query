@@ -1,7 +1,6 @@
 package com.beyt.jdq.dto;
 
 import com.beyt.jdq.dto.enums.CriteriaOperator;
-import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -12,7 +11,6 @@ import java.util.List;
 /**
  * Created by tdilber at 11/18/2020
  */
-@Slf4j
 public class CriteriaList extends ArrayList<Criteria> implements Serializable {
 
     public static CriteriaList of(Criteria... criteria) {

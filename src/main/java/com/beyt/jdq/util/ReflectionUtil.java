@@ -1,7 +1,6 @@
 package com.beyt.jdq.util;
 
 import com.beyt.jdq.util.field.FieldUtil;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.SerializationException;
 
 import java.lang.reflect.Method;
@@ -12,7 +11,6 @@ import java.util.List;
 /**
  * Created by tdilber at 7/10/2020
  */
-@Slf4j
 public class ReflectionUtil {
 
     public static void convertObjectArrayToIfNotAvailable(Class<?> clazz, Object[] objects) throws Exception {

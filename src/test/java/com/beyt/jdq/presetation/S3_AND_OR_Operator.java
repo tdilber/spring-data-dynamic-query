@@ -9,7 +9,6 @@ import com.beyt.jdq.testenv.entity.school.Course;
 import com.beyt.jdq.testenv.repository.CourseRepository;
 import com.beyt.jdq.testenv.repository.DepartmentRepository;
 import com.beyt.jdq.util.PresentationUtil;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +20,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Slf4j
 @SpringBootTest(classes = TestApplication.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -33,8 +31,8 @@ public class S3_AND_OR_Operator extends BaseTestInstance {
     @Test
     public void and() {
         var criteriaList = CriteriaList.of(
-                Criteria.of(Course.Fields.name, CriteriaOperator.CONTAIN, "II"),
-                Criteria.of(Course.Fields.id, CriteriaOperator.GREATER_THAN, 5));
+                Criteria.of("name", CriteriaOperator.CONTAIN, "II"),
+                Criteria.of("id", CriteriaOperator.GREATER_THAN, 5));
         PresentationUtil.prettyPrint(criteriaList);
         List<Course> courseList = courseRepository.findAll(criteriaList);
         PresentationUtil.prettyPrint(courseList); // 7 , 9
@@ -45,9 +43,9 @@ public class S3_AND_OR_Operator extends BaseTestInstance {
     @Test
     public void and2() {
         var criteriaList = CriteriaList.of(
-                Criteria.of(Course.Fields.name, CriteriaOperator.CONTAIN, "II"),
-                Criteria.of(Course.Fields.id, CriteriaOperator.EQUAL, 7, 8, 9, 10),
-                Criteria.of(Course.Fields.active, CriteriaOperator.SPECIFIED, false));
+                Criteria.of("name", CriteriaOperator.CONTAIN, "II"),
+                Criteria.of("id", CriteriaOperator.EQUAL, 7, 8, 9, 10),
+                Criteria.of("active", CriteriaOperator.SPECIFIED, false));
         PresentationUtil.prettyPrint(criteriaList);
         List<Course> courseList = courseRepository.findAll(criteriaList);
         PresentationUtil.prettyPrint(courseList); // 7
@@ -58,12 +56,12 @@ public class S3_AND_OR_Operator extends BaseTestInstance {
     @Test
     public void or() {
         var criteriaList = CriteriaList.of(
-                Criteria.of(Course.Fields.name, CriteriaOperator.CONTAIN, "II"),
-                Criteria.of(Course.Fields.id, CriteriaOperator.EQUAL, 7, 8, 9, 10),
-                Criteria.of(Course.Fields.active, CriteriaOperator.SPECIFIED, false),
+                Criteria.of("name", CriteriaOperator.CONTAIN, "II"),
+                Criteria.of("id", CriteriaOperator.EQUAL, 7, 8, 9, 10),
+                Criteria.of("active", CriteriaOperator.SPECIFIED, false),
                 Criteria.OR(),
-                Criteria.of(Course.Fields.id, CriteriaOperator.EQUAL, 1, 2, 3, 4, 5),
-                Criteria.of(Course.Fields.id, CriteriaOperator.LESS_THAN, 3)
+                Criteria.of("id", CriteriaOperator.EQUAL, 1, 2, 3, 4, 5),
+                Criteria.of("id", CriteriaOperator.LESS_THAN, 3)
         );
         PresentationUtil.prettyPrint(criteriaList);
         List<Course> courseList = courseRepository.findAll(criteriaList);
@@ -75,13 +73,13 @@ public class S3_AND_OR_Operator extends BaseTestInstance {
     @Test
     public void or2() {
         var criteriaList = CriteriaList.of(
-                Criteria.of(Course.Fields.name, CriteriaOperator.CONTAIN, "II"),
-                Criteria.of(Course.Fields.id, CriteriaOperator.EQUAL, 7, 8, 9, 10),
-                Criteria.of(Course.Fields.active, CriteriaOperator.SPECIFIED, false),
+                Criteria.of("name", CriteriaOperator.CONTAIN, "II"),
+                Criteria.of("id", CriteriaOperator.EQUAL, 7, 8, 9, 10),
+                Criteria.of("active", CriteriaOperator.SPECIFIED, false),
                 Criteria.OR(),
-                Criteria.of(Course.Fields.id, CriteriaOperator.EQUAL, 1, 2, 3, 4, 5),
+                Criteria.of("id", CriteriaOperator.EQUAL, 1, 2, 3, 4, 5),
                 Criteria.OR(),
-                Criteria.of(Course.Fields.id, CriteriaOperator.LESS_THAN, 3)
+                Criteria.of("id", CriteriaOperator.LESS_THAN, 3)
         );
         PresentationUtil.prettyPrint(criteriaList);
         List<Course> courseList = courseRepository.findAll(criteriaList);
