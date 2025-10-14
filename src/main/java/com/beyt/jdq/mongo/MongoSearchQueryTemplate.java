@@ -1,10 +1,17 @@
 package com.beyt.jdq.mongo;
 
+import com.beyt.jdq.annotation.model.JdqField;
+import com.beyt.jdq.annotation.model.JdqModel;
+import com.beyt.jdq.annotation.model.JdqSubModel;
 import com.beyt.jdq.deserializer.IDeserializer;
 import com.beyt.jdq.dto.DynamicQuery;
 import com.beyt.jdq.dto.enums.CriteriaOperator;
+import com.beyt.jdq.exception.DynamicQueryIllegalArgumentException;
 import com.beyt.jdq.exception.DynamicQueryValueSerializeException;
+import com.beyt.jdq.util.field.FieldUtil;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.bson.Document;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,10 +22,11 @@ import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.support.PageableExecutionUtils;
+import org.springframework.data.util.Pair;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
@@ -49,13 +57,39 @@ public class MongoSearchQueryTemplate {
      * Find all entities matching the dynamic query
      */
     public <Entity> List<Entity> findAll(Class<Entity> entityClass, DynamicQuery dynamicQuery) {
-        // Check if any criteria require joins (reference DBRef fields)
-        if (requiresJoin(entityClass, dynamicQuery)) {
+        // Check if we need aggregation pipeline (joins, distinct, or projection)
+        if (requiresAggregation(entityClass, dynamicQuery)) {
             return executeAggregation(entityClass, dynamicQuery);
         } else {
             Query query = prepareQuery(entityClass, dynamicQuery);
+            applyOrderBy(query, dynamicQuery);
             return mongoTemplate.find(query, entityClass);
         }
+    }
+
+    /**
+     * Find all entities with projection matching the dynamic query
+     */
+    public <Entity, ResultType> List<ResultType> findAll(Class<Entity> entityClass, DynamicQuery dynamicQuery, Class<ResultType> resultClass) {
+        // Extract @JdqModel annotations if present
+        extractIfJdqModel(dynamicQuery, resultClass);
+        
+        // Check if projection is needed
+        if (CollectionUtils.isEmpty(dynamicQuery.getSelect())) {
+            // No projection, just return as result type
+            if (requiresJoin(entityClass, dynamicQuery)) {
+                return executeAggregationWithProjection(entityClass, dynamicQuery, resultClass);
+            } else {
+                Query query = prepareQuery(entityClass, dynamicQuery);
+                applyOrderBy(query, dynamicQuery);
+                return mongoTemplate.find(query, entityClass).stream()
+                    .map(e -> mongoTemplate.getConverter().read(resultClass, new Document()))
+                    .collect(Collectors.toList());
+            }
+        }
+        
+        // Execute with projection
+        return executeAggregationWithProjection(entityClass, dynamicQuery, resultClass);
     }
 
     /**
@@ -88,6 +122,21 @@ public class MongoSearchQueryTemplate {
                 () -> mongoTemplate.count(Query.query(criteria), entityClass)
             );
         }
+    }
+
+    /**
+     * Find all entities as page with projection matching the dynamic query
+     */
+    public <Entity, ResultType> Page<ResultType> findAllAsPage(Class<Entity> entityClass, DynamicQuery dynamicQuery, Class<ResultType> resultClass) {
+        // Extract @JdqModel annotations if present
+        extractIfJdqModel(dynamicQuery, resultClass);
+        
+        Pageable pageable = getPageable(dynamicQuery);
+        
+        // Execute with projection
+        List<ResultType> all = executeAggregationWithProjection(entityClass, dynamicQuery, resultClass, pageable);
+        long count = countWithAggregation(entityClass, dynamicQuery);
+        return PageableExecutionUtils.getPage(all, pageable, () -> count);
     }
 
     /**
@@ -359,9 +408,7 @@ public class MongoSearchQueryTemplate {
         String[] parts = fieldPath.split("\\.");
         Class<?> currentClass = entityClass;
         StringBuilder logicalPath = new StringBuilder();
-        String lastLookupField = null; // Track the last lookup field we encountered
         StringBuilder resultPath = new StringBuilder();
-        boolean afterNonCollectionDBRef = false; // Track if we're after a non-collection DBRef
         
         for (int i = 0; i < parts.length; i++) {
             String part = parts[i];
@@ -382,19 +429,17 @@ public class MongoSearchQueryTemplate {
                     if (i < parts.length - 1) {
                         // This is a DBRef that leads to more nested fields
                         // The lookup field name
-                        lastLookupField = logicalPath.toString().replace(".", "_") + "_lookup";
+                        String lookupField = logicalPath.toString().replace(".", "_") + "_lookup";
                         
                         if (isCollection) {
                             // For collection DBRefs, the lookup field is at the root level
-                            resultPath = new StringBuilder(lastLookupField);
-                            afterNonCollectionDBRef = false;
+                            resultPath = new StringBuilder(lookupField);
                         } else {
                             // For non-collection DBRefs, after $addFields, it's accessible via the parent lookup
                             if (resultPath.length() > 0) {
                                 resultPath.append(".");
                             }
                             resultPath.append(part);
-                            afterNonCollectionDBRef = true;
                         }
                     } else {
                         // This is the final DBRef field (shouldn't happen in practice for queries on nested fields)
@@ -510,6 +555,25 @@ public class MongoSearchQueryTemplate {
     }
 
     /**
+     * Check if the query requires aggregation pipeline
+     * Required for:
+     * 1. Joins (DBRef lookups)
+     * 2. Projection (SELECT fields)
+     * 3. Distinct queries
+     * 4. Complex ordering on joined fields
+     */
+    private <Entity> boolean requiresAggregation(Class<Entity> entityClass, DynamicQuery searchQuery) {
+        // Check for joins
+        boolean hasJoins = searchQuery.getWhere().stream().anyMatch(c -> isJoinCriteria(entityClass, c.getKey()));
+        // Check for projection
+        boolean hasProjection = CollectionUtils.isNotEmpty(searchQuery.getSelect());
+        // Check for distinct
+        boolean hasDistinct = searchQuery.isDistinct();
+        
+        return hasJoins || hasProjection || hasDistinct;
+    }
+
+    /**
      * Check if the query requires join operations (DBRef lookups)
      * Detects:
      * 1. Nested field paths (e.g., "department.name") where first part is a DBRef field
@@ -583,13 +647,20 @@ public class MongoSearchQueryTemplate {
      * Build aggregation pipeline with $lookup stages for joins
      */
     private <Entity> Aggregation buildAggregation(Class<Entity> entityClass, DynamicQuery dynamicQuery, Pageable pageable) {
-        return buildAggregation(entityClass, dynamicQuery, pageable, false);
+        return buildAggregation(entityClass, dynamicQuery, pageable, false, null);
     }
 
     /**
      * Build aggregation pipeline with $lookup stages for joins
      */
     private <Entity> Aggregation buildAggregation(Class<Entity> entityClass, DynamicQuery dynamicQuery, Pageable pageable, boolean isCount) {
+        return buildAggregation(entityClass, dynamicQuery, pageable, isCount, null);
+    }
+
+    /**
+     * Build aggregation pipeline with $lookup stages for joins and optional projection
+     */
+    private <Entity, ResultType> Aggregation buildAggregation(Class<Entity> entityClass, DynamicQuery dynamicQuery, Pageable pageable, boolean isCount, Class<ResultType> resultClass) {
         List<org.springframework.data.mongodb.core.aggregation.AggregationOperation> operations = new ArrayList<>();
         
         // Collect all nested paths that need lookups (including deep nested paths)
@@ -603,10 +674,39 @@ public class MongoSearchQueryTemplate {
         Criteria criteria = applyCriteria(entityClass, dynamicQuery);
         operations.add(match(criteria));
         
+        // Add distinct if specified (using $group - must come before projection)
+        if (dynamicQuery.isDistinct()) {
+            // For distinct with joins, we need to group by document root to get unique documents
+            operations.add(Aggregation.group("$_id")
+                .first("$$ROOT").as("doc"));
+            // Replace root with the grouped document
+            operations.add(Aggregation.replaceRoot("doc"));
+        }
+        
+        // Add projection if select fields are specified
+        if (CollectionUtils.isNotEmpty(dynamicQuery.getSelect())) {
+            operations.add(buildProjectionStage(entityClass, dynamicQuery));
+        }
+        
         if (isCount) {
             // For count, just return the count
             operations.add(Aggregation.count().as("count"));
         } else {
+            // Add order by if specified
+            if (CollectionUtils.isNotEmpty(dynamicQuery.getOrderBy())) {
+                List<org.springframework.data.domain.Sort.Order> orders = new ArrayList<>();
+                for (Pair<String, com.beyt.jdq.dto.enums.Order> orderPair : dynamicQuery.getOrderBy()) {
+                    String fieldPath = orderPair.getFirst();
+                    // Convert field path to MongoDB field path
+                    String mongoField = toMongoFieldPath(entityClass, fieldPath);
+                    orders.add(new org.springframework.data.domain.Sort.Order(
+                        orderPair.getSecond().getDirection(),
+                        mongoField
+                    ));
+                }
+                operations.add(sort(org.springframework.data.domain.Sort.by(orders)));
+            }
+            
             // Add pagination if provided
             if (pageable != null) {
                 if (pageable.getSort().isSorted()) {
@@ -625,6 +725,37 @@ public class MongoSearchQueryTemplate {
         }
         
         return Aggregation.newAggregation(operations);
+    }
+
+    /**
+     * Build $project stage for field selection
+     */
+    private <Entity> org.springframework.data.mongodb.core.aggregation.ProjectionOperation buildProjectionStage(
+            Class<Entity> entityClass, 
+            DynamicQuery dynamicQuery) {
+        org.springframework.data.mongodb.core.aggregation.ProjectionOperation projection = Aggregation.project();
+        
+        // Check if _id is explicitly selected
+        boolean hasIdSelection = dynamicQuery.getSelect().stream()
+            .anyMatch(p -> "id".equals(p.getFirst()) || "_id".equals(p.getFirst()));
+        
+        // Exclude _id if not explicitly selected
+        if (!hasIdSelection) {
+            projection = projection.andExclude("_id");
+        }
+        
+        for (Pair<String, String> selectPair : dynamicQuery.getSelect()) {
+            String sourceField = selectPair.getFirst();  // Database field name
+            String targetField = selectPair.getSecond(); // Result field name (alias)
+            
+            // Convert to MongoDB field path
+            String mongoField = toMongoFieldPath(entityClass, sourceField);
+            
+            // Add field with alias
+            projection = projection.and(mongoField).as(targetField);
+        }
+        
+        return projection;
     }
 
     /**
@@ -808,5 +939,272 @@ public class MongoSearchQueryTemplate {
         // Default: convert class name to lowercase plural
         String className = entityClass.getSimpleName();
         return className.toLowerCase() + "s";
+    }
+
+    /**
+     * Apply order by to query from DynamicQuery
+     */
+    private void applyOrderBy(Query query, DynamicQuery dynamicQuery) {
+        if (CollectionUtils.isNotEmpty(dynamicQuery.getOrderBy())) {
+            dynamicQuery.getOrderBy().forEach(orderPair -> {
+                query.with(org.springframework.data.domain.Sort.by(
+                    orderPair.getSecond().getDirection(),
+                    orderPair.getFirst()
+                ));
+            });
+        }
+    }
+
+    /**
+     * Extract field mappings from @JdqModel annotated class
+     */
+    private <ResultType> void extractIfJdqModel(DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass) {
+        if (!resultTypeClass.isAnnotationPresent(JdqModel.class)) {
+            return;
+        }
+
+        List<Pair<String, String>> select = new ArrayList<>();
+        recursiveSubModelFiller(resultTypeClass, select, new ArrayList<>(), "");
+        dynamicQuery.setSelect(select);
+    }
+
+    /**
+     * Recursively process @JdqSubModel and @JdqField annotations
+     */
+    private <ResultType> void recursiveSubModelFiller(Class<ResultType> resultTypeClass, 
+                                                      List<Pair<String, String>> select, 
+                                                      List<String> dbPrefixList, 
+                                                      String entityPrefix) {
+        Field[] fields = resultTypeClass.isRecord() ? 
+            Arrays.stream(resultTypeClass.getRecordComponents())
+                .map(rc -> {
+                    try {
+                        return resultTypeClass.getDeclaredField(rc.getName());
+                    } catch (NoSuchFieldException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toArray(Field[]::new) :
+            resultTypeClass.getDeclaredFields();
+
+        for (Field declaredField : fields) {
+            if (declaredField.isAnnotationPresent(JdqSubModel.class)) {
+                String subModelValue = declaredField.getAnnotation(JdqSubModel.class).value();
+                ArrayList<String> newPrefixList = new ArrayList<>(dbPrefixList);
+                if (StringUtils.isNotBlank(subModelValue)) {
+                    newPrefixList.add(subModelValue);
+                }
+                recursiveSubModelFiller(declaredField.getType(), select, newPrefixList, 
+                    entityPrefix + declaredField.getName() + ".");
+            } else if (FieldUtil.isSupportedType(declaredField.getType())) {
+                if (declaredField.isAnnotationPresent(JdqField.class)) {
+                    select.add(Pair.of(
+                        prefixCreator(dbPrefixList) + declaredField.getAnnotation(JdqField.class).value(), 
+                        entityPrefix + declaredField.getName()
+                    ));
+                } else {
+                    select.add(Pair.of(
+                        prefixCreator(dbPrefixList) + declaredField.getName(), 
+                        entityPrefix + declaredField.getName()
+                    ));
+                }
+            } else {
+                if (resultTypeClass.isRecord()) {
+                    throw new DynamicQueryIllegalArgumentException(
+                        "Record doesn't support nested model type: " + declaredField.getType().getName()
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Create prefix string from list
+     */
+    private String prefixCreator(List<String> prefixList) {
+        String collect = String.join(".", prefixList);
+        if (StringUtils.isNotBlank(collect)) {
+            collect += ".";
+        }
+        return collect;
+    }
+
+    /**
+     * Execute aggregation with projection
+     */
+    private <Entity, ResultType> List<ResultType> executeAggregationWithProjection(
+            Class<Entity> entityClass, 
+            DynamicQuery dynamicQuery, 
+            Class<ResultType> resultClass) {
+        return executeAggregationWithProjection(entityClass, dynamicQuery, resultClass, null);
+    }
+
+    /**
+     * Execute aggregation with projection and pagination
+     */
+    private <Entity, ResultType> List<ResultType> executeAggregationWithProjection(
+            Class<Entity> entityClass, 
+            DynamicQuery dynamicQuery, 
+            Class<ResultType> resultClass,
+            Pageable pageable) {
+        Aggregation aggregation = buildAggregation(entityClass, dynamicQuery, pageable, false, resultClass);
+        AggregationResults<Document> results = mongoTemplate.aggregate(
+            aggregation, 
+            getCollectionName(entityClass), 
+            Document.class
+        );
+        
+        return results.getMappedResults().stream()
+            .map(doc -> convertDocumentToResultType(doc, resultClass, dynamicQuery))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Convert MongoDB Document to result type using field mappings
+     */
+    private <ResultType> ResultType convertDocumentToResultType(
+            Document doc, 
+            Class<ResultType> resultClass, 
+            DynamicQuery dynamicQuery) {
+        try {
+            if (CollectionUtils.isEmpty(dynamicQuery.getSelect())) {
+                // No projection, direct conversion
+                return mongoTemplate.getConverter().read(resultClass, doc);
+            }
+
+            // Build a map of field names to values from the document
+            Map<String, Object> fieldValues = new HashMap<>();
+            for (Pair<String, String> selectPair : dynamicQuery.getSelect()) {
+                String targetField = selectPair.getSecond(); // The result class field name
+                
+                // Get value from document - handle nested paths
+                Object value = getNestedValue(doc, targetField);
+                fieldValues.put(targetField, value);
+            }
+
+            return createInstance(resultClass, fieldValues, dynamicQuery);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Get value from document using nested path (e.g., "role.roleId" -> doc.role.roleId)
+     */
+    private Object getNestedValue(Document doc, String path) {
+        String[] parts = path.split("\\.");
+        Object current = doc;
+        
+        for (String part : parts) {
+            if (current == null) {
+                return null;
+            }
+            if (current instanceof Document) {
+                current = ((Document) current).get(part);
+            } else {
+                return null;
+            }
+        }
+        
+        return current;
+    }
+
+    /**
+     * Create instance of result class using field values
+     */
+    private <ResultType> ResultType createInstance(
+            Class<ResultType> resultClass, 
+            Map<String, Object> fieldValues,
+            DynamicQuery dynamicQuery) throws Exception {
+        
+        if (resultClass.isRecord()) {
+            return createRecordInstance(resultClass, fieldValues, dynamicQuery);
+        } else {
+            return createClassInstance(resultClass, fieldValues, dynamicQuery);
+        }
+    }
+
+    /**
+     * Create record instance using constructor
+     */
+    private <ResultType> ResultType createRecordInstance(
+            Class<ResultType> resultClass, 
+            Map<String, Object> fieldValues,
+            DynamicQuery dynamicQuery) throws Exception {
+        
+        RecordComponent[] components = resultClass.getRecordComponents();
+        Class<?>[] paramTypes = new Class<?>[components.length];
+        Object[] args = new Object[components.length];
+        
+        for (int i = 0; i < components.length; i++) {
+            paramTypes[i] = components[i].getType();
+            String fieldName = components[i].getName();
+            
+            // Get the field to check for @JdqSubModel annotation
+            Field field = resultClass.getDeclaredField(fieldName);
+            
+            // Check if it's a sub-model
+            if (field.isAnnotationPresent(JdqSubModel.class)) {
+                // Recursively create sub-model
+                Map<String, Object> subFieldValues = new HashMap<>();
+                String prefix = fieldName + ".";
+                for (Map.Entry<String, Object> entry : fieldValues.entrySet()) {
+                    if (entry.getKey().startsWith(prefix)) {
+                        subFieldValues.put(entry.getKey().substring(prefix.length()), entry.getValue());
+                    }
+                }
+                args[i] = createInstance(components[i].getType(), subFieldValues, dynamicQuery);
+            } else {
+                args[i] = fieldValues.get(fieldName);
+            }
+        }
+        
+        Constructor<ResultType> constructor = resultClass.getDeclaredConstructor(paramTypes);
+        return constructor.newInstance(args);
+    }
+
+    /**
+     * Create class instance using no-arg constructor and setters
+     */
+    private <ResultType> ResultType createClassInstance(
+            Class<ResultType> resultClass, 
+            Map<String, Object> fieldValues,
+            DynamicQuery dynamicQuery) throws Exception {
+        
+        ResultType instance = resultClass.getDeclaredConstructor().newInstance();
+        
+        for (Field field : resultClass.getDeclaredFields()) {
+            String fieldName = field.getName();
+            
+            // Check if it's a sub-model
+            if (field.isAnnotationPresent(JdqSubModel.class)) {
+                Map<String, Object> subFieldValues = new HashMap<>();
+                String prefix = fieldName + ".";
+                for (Map.Entry<String, Object> entry : fieldValues.entrySet()) {
+                    if (entry.getKey().startsWith(prefix)) {
+                        subFieldValues.put(entry.getKey().substring(prefix.length()), entry.getValue());
+                    }
+                }
+                Object subModel = createInstance(field.getType(), subFieldValues, dynamicQuery);
+                field.setAccessible(true);
+                field.set(instance, subModel);
+            } else if (fieldValues.containsKey(fieldName)) {
+                // Find setter method
+                String setterName = "set" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+                try {
+                    Method setter = resultClass.getMethod(setterName, field.getType());
+                    setter.invoke(instance, fieldValues.get(fieldName));
+                } catch (NoSuchMethodException e) {
+                    // Try direct field access
+                    field.setAccessible(true);
+                    field.set(instance, fieldValues.get(fieldName));
+                }
+            }
+        }
+        
+        return instance;
     }
 }

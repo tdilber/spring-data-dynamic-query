@@ -52,10 +52,24 @@ public interface JpaDynamicQueryMongoRepository<T, ID> extends MongoRepository<T
     }
 
     /**
+     * Find all entities with projection matching the dynamic query
+     */
+    default <R> List<R> findAll(DynamicQuery dynamicQuery, Class<R> resultClass) {
+        return getMongoSearchQueryTemplate().findAll(getEntityClass(), dynamicQuery, resultClass);
+    }
+
+    /**
      * Find all entities as page matching the dynamic query
      */
     default Page<T> findAllAsPage(DynamicQuery dynamicQuery) {
         return getMongoSearchQueryTemplate().findAllAsPage(getEntityClass(), dynamicQuery);
+    }
+
+    /**
+     * Find all entities as page with projection matching the dynamic query
+     */
+    default <R> Page<R> findAllAsPage(DynamicQuery dynamicQuery, Class<R> resultClass) {
+        return getMongoSearchQueryTemplate().findAllAsPage(getEntityClass(), dynamicQuery, resultClass);
     }
 
     /**
