@@ -174,8 +174,20 @@ public class MongoSearchQueryTemplate {
         int pageNumber = searchQuery.getPageNumber() != null ? searchQuery.getPageNumber() : 0;
         int pageSize = searchQuery.getPageSize() != null ? searchQuery.getPageSize() : 20;
         
-        // Don't include sort in Pageable - we handle sort separately in aggregation pipeline
-        // because we need to convert field names to MongoDB field paths
+        // Include sort in Pageable using original field names (not MongoDB paths)
+        // We handle the actual sorting in aggregation pipeline with MongoDB field paths,
+        // but the Pageable should reflect what was requested using the original field names
+        if (CollectionUtils.isNotEmpty(searchQuery.getOrderBy())) {
+            List<org.springframework.data.domain.Sort.Order> orders = new ArrayList<>();
+            for (Pair<String, com.beyt.jdq.dto.enums.Order> orderPair : searchQuery.getOrderBy()) {
+                orders.add(new org.springframework.data.domain.Sort.Order(
+                    orderPair.getSecond().getDirection(),
+                    orderPair.getFirst()  // Use original field name
+                ));
+            }
+            return PageRequest.of(pageNumber, pageSize, org.springframework.data.domain.Sort.by(orders));
+        }
+        
         return PageRequest.of(pageNumber, pageSize);
     }
 
@@ -200,6 +212,25 @@ public class MongoSearchQueryTemplate {
         List<Criteria> searchCriteriaList = new ArrayList<>();
         List<Criteria> andCriteriaList = new ArrayList<>();
         List<Criteria> orGroupList = new ArrayList<>();
+
+        // Validate OR operator usage
+        if (CollectionUtils.isNotEmpty(criteriaList)) {
+            // Check if OR is at the start
+            if (criteriaList.get(0).getOperation() == CriteriaOperator.OR) {
+                throw new com.beyt.jdq.exception.DynamicQueryNoAvailableOrOperationUsageException(
+                    "OR operator cannot be at the start of criteria list");
+            }
+            // Check if OR is at the end
+            if (criteriaList.get(criteriaList.size() - 1).getOperation() == CriteriaOperator.OR) {
+                throw new com.beyt.jdq.exception.DynamicQueryNoAvailableOrOperationUsageException(
+                    "OR operator cannot be at the end of criteria list");
+            }
+            // Check if only OR operator exists
+            if (criteriaList.size() == 1 && criteriaList.get(0).getOperation() == CriteriaOperator.OR) {
+                throw new com.beyt.jdq.exception.DynamicQueryNoAvailableOrOperationUsageException(
+                    "OR operator cannot be used alone");
+            }
+        }
 
         Map<CriteriaOperator, CriteriaBuilderFunction> criteriaBuilderMap = buildCriteriaMap(entityClass, issuedCriteriaList, searchQuery);
 
@@ -308,32 +339,81 @@ public class MongoSearchQueryTemplate {
             return where(mongoField).nin(deserializedValues);
         });
 
-        // CONTAIN - case insensitive regex
+        // CONTAIN - case insensitive regex, supports multiple values with OR logic
         criteriaBuilderMap.put(CriteriaOperator.CONTAIN, (sc, sq) -> {
             String fieldKey = sc.getKey().replace("<", ".");  // Convert left join syntax
             String mongoField = toMongoFieldPath(entityClass, fieldKey);
-            return where(mongoField).regex(".*" + escapeRegex(String.valueOf(sc.getValues().get(0))) + ".*", "i");
+            if (sc.getValues() == null || sc.getValues().isEmpty()) {
+                return where(mongoField).is(null);
+            }
+            if (sc.getValues().size() == 1) {
+                return where(mongoField).regex(".*" + escapeRegex(String.valueOf(sc.getValues().get(0))) + ".*", "i");
+            }
+            // Multiple values - OR logic
+            List<Criteria> orCriteria = new ArrayList<>();
+            for (Object value : sc.getValues()) {
+                orCriteria.add(where(mongoField).regex(".*" + escapeRegex(String.valueOf(value)) + ".*", "i"));
+            }
+            return new Criteria().orOperator(orCriteria);
         });
 
-        // DOES_NOT_CONTAIN
+        // DOES_NOT_CONTAIN - supports multiple values with AND logic (none of the values should be contained)
+        // Also excludes null values since null doesn't "contain" or "not contain" anything
         criteriaBuilderMap.put(CriteriaOperator.DOES_NOT_CONTAIN, (sc, sq) -> {
             String fieldKey = sc.getKey().replace("<", ".");  // Convert left join syntax
             String mongoField = toMongoFieldPath(entityClass, fieldKey);
-            return where(mongoField).not().regex(".*" + escapeRegex(String.valueOf(sc.getValues().get(0))) + ".*", "i");
+            if (sc.getValues() == null || sc.getValues().isEmpty()) {
+                return where(mongoField).ne(null);
+            }
+            // Build criteria: field must not be null AND must not match any of the patterns
+            List<Criteria> andCriteria = new ArrayList<>();
+            andCriteria.add(where(mongoField).ne(null)); // Exclude nulls
+            
+            if (sc.getValues().size() == 1) {
+                andCriteria.add(where(mongoField).not().regex(".*" + escapeRegex(String.valueOf(sc.getValues().get(0))) + ".*", "i"));
+            } else {
+                // Multiple values - AND logic (must not contain any of them)
+                for (Object value : sc.getValues()) {
+                    andCriteria.add(where(mongoField).not().regex(".*" + escapeRegex(String.valueOf(value)) + ".*", "i"));
+                }
+            }
+            return new Criteria().andOperator(andCriteria);
         });
 
-        // START_WITH
+        // START_WITH - supports multiple values with OR logic
         criteriaBuilderMap.put(CriteriaOperator.START_WITH, (sc, sq) -> {
             String fieldKey = sc.getKey().replace("<", ".");  // Convert left join syntax
             String mongoField = toMongoFieldPath(entityClass, fieldKey);
-            return where(mongoField).regex("^" + escapeRegex(String.valueOf(sc.getValues().get(0))) + ".*", "i");
+            if (sc.getValues() == null || sc.getValues().isEmpty()) {
+                return where(mongoField).is(null);
+            }
+            if (sc.getValues().size() == 1) {
+                return where(mongoField).regex("^" + escapeRegex(String.valueOf(sc.getValues().get(0))) + ".*", "i");
+            }
+            // Multiple values - OR logic
+            List<Criteria> orCriteria = new ArrayList<>();
+            for (Object value : sc.getValues()) {
+                orCriteria.add(where(mongoField).regex("^" + escapeRegex(String.valueOf(value)) + ".*", "i"));
+            }
+            return new Criteria().orOperator(orCriteria);
         });
 
-        // END_WITH
+        // END_WITH - supports multiple values with OR logic
         criteriaBuilderMap.put(CriteriaOperator.END_WITH, (sc, sq) -> {
             String fieldKey = sc.getKey().replace("<", ".");  // Convert left join syntax
             String mongoField = toMongoFieldPath(entityClass, fieldKey);
-            return where(mongoField).regex(".*" + escapeRegex(String.valueOf(sc.getValues().get(0))) + "$", "i");
+            if (sc.getValues() == null || sc.getValues().isEmpty()) {
+                return where(mongoField).is(null);
+            }
+            if (sc.getValues().size() == 1) {
+                return where(mongoField).regex(".*" + escapeRegex(String.valueOf(sc.getValues().get(0))) + "$", "i");
+            }
+            // Multiple values - OR logic
+            List<Criteria> orCriteria = new ArrayList<>();
+            for (Object value : sc.getValues()) {
+                orCriteria.add(where(mongoField).regex(".*" + escapeRegex(String.valueOf(value)) + "$", "i"));
+            }
+            return new Criteria().orOperator(orCriteria);
         });
 
         // SPECIFIED - check if field is not null (true) or is null (false)
@@ -557,20 +637,36 @@ public class MongoSearchQueryTemplate {
     /**
      * Check if the query requires aggregation pipeline
      * Required for:
-     * 1. Joins (DBRef lookups)
+     * 1. Joins (DBRef lookups) in WHERE, SELECT, or ORDER BY
      * 2. Projection (SELECT fields)
      * 3. Distinct queries
      * 4. Complex ordering on joined fields
      */
     private <Entity> boolean requiresAggregation(Class<Entity> entityClass, DynamicQuery searchQuery) {
-        // Check for joins
-        boolean hasJoins = searchQuery.getWhere().stream().anyMatch(c -> isJoinCriteria(entityClass, c.getKey()));
+        // Check for joins in WHERE criteria
+        boolean hasJoinsInWhere = searchQuery.getWhere().stream().anyMatch(c -> isJoinCriteria(entityClass, c.getKey()));
+        
+        // Check for joins in SELECT fields
+        boolean hasJoinsInSelect = false;
+        if (CollectionUtils.isNotEmpty(searchQuery.getSelect())) {
+            hasJoinsInSelect = searchQuery.getSelect().stream()
+                .anyMatch(p -> isJoinCriteria(entityClass, p.getFirst()));
+        }
+        
+        // Check for joins in ORDER BY fields
+        boolean hasJoinsInOrderBy = false;
+        if (CollectionUtils.isNotEmpty(searchQuery.getOrderBy())) {
+            hasJoinsInOrderBy = searchQuery.getOrderBy().stream()
+                .anyMatch(p -> isJoinCriteria(entityClass, p.getFirst()));
+        }
+        
         // Check for projection
         boolean hasProjection = CollectionUtils.isNotEmpty(searchQuery.getSelect());
+        
         // Check for distinct
         boolean hasDistinct = searchQuery.isDistinct();
         
-        return hasJoins || hasProjection || hasDistinct;
+        return hasJoinsInWhere || hasJoinsInSelect || hasJoinsInOrderBy || hasProjection || hasDistinct;
     }
 
     /**
@@ -578,9 +674,28 @@ public class MongoSearchQueryTemplate {
      * Detects:
      * 1. Nested field paths (e.g., "department.name") where first part is a DBRef field
      * 2. Left join syntax with '<' (e.g., "department<id")
+     * Checks WHERE, SELECT, and ORDER BY fields
      */
     private <Entity> boolean requiresJoin(Class<Entity> entityClass, DynamicQuery searchQuery) {
-        return searchQuery.getWhere().stream().anyMatch(c -> isJoinCriteria(entityClass, c.getKey()));
+        // Check WHERE criteria
+        boolean hasJoinsInWhere = searchQuery.getWhere().stream().anyMatch(c -> isJoinCriteria(entityClass, c.getKey()));
+        if (hasJoinsInWhere) return true;
+        
+        // Check SELECT fields
+        if (CollectionUtils.isNotEmpty(searchQuery.getSelect())) {
+            boolean hasJoinsInSelect = searchQuery.getSelect().stream()
+                .anyMatch(p -> isJoinCriteria(entityClass, p.getFirst()));
+            if (hasJoinsInSelect) return true;
+        }
+        
+        // Check ORDER BY fields
+        if (CollectionUtils.isNotEmpty(searchQuery.getOrderBy())) {
+            boolean hasJoinsInOrderBy = searchQuery.getOrderBy().stream()
+                .anyMatch(p -> isJoinCriteria(entityClass, p.getFirst()));
+            if (hasJoinsInOrderBy) return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -874,12 +989,13 @@ public class MongoSearchQueryTemplate {
     }
 
     /**
-     * Collect all nested paths from criteria (including deep nested paths)
+     * Collect all nested paths from criteria and select fields (including deep nested paths)
      * Handles both '.' and '<' syntax for nested paths
      */
     private <Entity> Set<String> collectAllNestedPaths(Class<Entity> entityClass, DynamicQuery dynamicQuery) {
         Set<String> allPaths = new HashSet<>();
         
+        // Collect paths from WHERE criteria
         for (com.beyt.jdq.dto.Criteria c : dynamicQuery.getWhere()) {
             String fieldKey = c.getKey();
             
@@ -898,6 +1014,54 @@ public class MongoSearchQueryTemplate {
                         pathBuilder.append(segments[j]);
                     }
                     allPaths.add(pathBuilder.toString());
+                }
+            }
+        }
+        
+        // Collect paths from SELECT fields
+        if (CollectionUtils.isNotEmpty(dynamicQuery.getSelect())) {
+            for (Pair<String, String> selectPair : dynamicQuery.getSelect()) {
+                String fieldKey = selectPair.getFirst();
+                
+                // Convert left join syntax to dot notation for analysis
+                String pathToAnalyze = fieldKey.replace("<", ".");
+                
+                // For nested paths like "user.name"
+                if (pathToAnalyze.contains(".")) {
+                    // Add all parent paths that need lookup
+                    String[] segments = pathToAnalyze.split("\\.");
+                    for (int i = 0; i < segments.length - 1; i++) {
+                        StringBuilder pathBuilder = new StringBuilder();
+                        for (int j = 0; j <= i; j++) {
+                            if (j > 0) pathBuilder.append(".");
+                            pathBuilder.append(segments[j]);
+                        }
+                        allPaths.add(pathBuilder.toString());
+                    }
+                }
+            }
+        }
+        
+        // Collect paths from ORDER BY fields
+        if (CollectionUtils.isNotEmpty(dynamicQuery.getOrderBy())) {
+            for (Pair<String, com.beyt.jdq.dto.enums.Order> orderPair : dynamicQuery.getOrderBy()) {
+                String fieldKey = orderPair.getFirst();
+                
+                // Convert left join syntax to dot notation for analysis
+                String pathToAnalyze = fieldKey.replace("<", ".");
+                
+                // For nested paths
+                if (pathToAnalyze.contains(".")) {
+                    // Add all parent paths that need lookup
+                    String[] segments = pathToAnalyze.split("\\.");
+                    for (int i = 0; i < segments.length - 1; i++) {
+                        StringBuilder pathBuilder = new StringBuilder();
+                        for (int j = 0; j <= i; j++) {
+                            if (j > 0) pathBuilder.append(".");
+                            pathBuilder.append(segments[j]);
+                        }
+                        allPaths.add(pathBuilder.toString());
+                    }
                 }
             }
         }
@@ -986,6 +1150,17 @@ public class MongoSearchQueryTemplate {
             resultTypeClass.getDeclaredFields();
 
         for (Field declaredField : fields) {
+            // Check if field should be ignored
+            if (declaredField.isAnnotationPresent(com.beyt.jdq.annotation.model.JdqIgnoreField.class)) {
+                // For records, we cannot ignore fields because all constructor parameters must be provided
+                if (resultTypeClass.isRecord()) {
+                    throw new DynamicQueryIllegalArgumentException(
+                        "Record doesn't support @JdqIgnoreField annotation on component: " + declaredField.getName()
+                    );
+                }
+                continue;  // Skip this field for non-record classes
+            }
+            
             if (declaredField.isAnnotationPresent(JdqSubModel.class)) {
                 String subModelValue = declaredField.getAnnotation(JdqSubModel.class).value();
                 ArrayList<String> newPrefixList = new ArrayList<>(dbPrefixList);
@@ -1155,7 +1330,8 @@ public class MongoSearchQueryTemplate {
                 }
                 args[i] = createInstance(components[i].getType(), subFieldValues, dynamicQuery);
             } else {
-                args[i] = fieldValues.get(fieldName);
+                Object value = fieldValues.get(fieldName);
+                args[i] = convertValue(value, components[i].getType());
             }
         }
         
@@ -1189,19 +1365,77 @@ public class MongoSearchQueryTemplate {
                 field.setAccessible(true);
                 field.set(instance, subModel);
             } else if (fieldValues.containsKey(fieldName)) {
+                Object value = fieldValues.get(fieldName);
+                Object convertedValue = convertValue(value, field.getType());
+                
                 // Find setter method
                 String setterName = "set" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
                 try {
                     Method setter = resultClass.getMethod(setterName, field.getType());
-                    setter.invoke(instance, fieldValues.get(fieldName));
+                    setter.invoke(instance, convertedValue);
                 } catch (NoSuchMethodException e) {
                     // Try direct field access
                     field.setAccessible(true);
-                    field.set(instance, fieldValues.get(fieldName));
+                    field.set(instance, convertedValue);
                 }
             }
         }
         
         return instance;
+    }
+    
+    /**
+     * Convert value to target type
+     */
+    private Object convertValue(Object value, Class<?> targetType) {
+        if (value == null) {
+            return null;
+        }
+        
+        // If types already match, return as is
+        if (targetType.isAssignableFrom(value.getClass())) {
+            return value;
+        }
+        
+        // Handle numeric conversions
+        if (value instanceof Number) {
+            Number numValue = (Number) value;
+            if (targetType == Integer.class || targetType == int.class) {
+                return numValue.intValue();
+            } else if (targetType == Long.class || targetType == long.class) {
+                return numValue.longValue();
+            } else if (targetType == Double.class || targetType == double.class) {
+                return numValue.doubleValue();
+            } else if (targetType == Float.class || targetType == float.class) {
+                return numValue.floatValue();
+            } else if (targetType == Short.class || targetType == short.class) {
+                return numValue.shortValue();
+            } else if (targetType == Byte.class || targetType == byte.class) {
+                return numValue.byteValue();
+            }
+        }
+        
+        // Handle Date/Instant conversions
+        if (value instanceof java.util.Date && targetType == java.time.Instant.class) {
+            return ((java.util.Date) value).toInstant();
+        }
+        if (value instanceof java.time.Instant && targetType == java.util.Date.class) {
+            return java.util.Date.from((java.time.Instant) value);
+        }
+        
+        // Handle String conversions
+        if (targetType == String.class) {
+            return value.toString();
+        }
+        
+        // Handle enum conversions
+        if (targetType.isEnum() && value instanceof String) {
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Object enumValue = Enum.valueOf((Class<? extends Enum>) targetType, (String) value);
+            return enumValue;
+        }
+        
+        // Default: return as is and let reflection handle it
+        return value;
     }
 }

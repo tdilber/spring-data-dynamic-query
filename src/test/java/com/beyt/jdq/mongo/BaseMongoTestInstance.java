@@ -1,7 +1,11 @@
 package com.beyt.jdq.mongo;
 
 import com.beyt.jdq.mongo.entity.Course;
+import com.beyt.jdq.mongo.entity.Customer;
+import com.beyt.jdq.mongo.entity.User;
 import com.beyt.jdq.mongo.repository.MongoCourseRepository;
+import com.beyt.jdq.mongo.repository.MongoCustomerRepository;
+import com.beyt.jdq.mongo.repository.MongoUserRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -17,6 +21,12 @@ public abstract class BaseMongoTestInstance {
     @Autowired
     protected MongoCourseRepository courseRepository;
 
+    @Autowired
+    protected MongoUserRepository userRepository;
+
+    @Autowired
+    protected MongoCustomerRepository customerRepository;
+
     public static final Calendar INSTANCE = Calendar.getInstance();
 
     // Test course data - similar to JPA tests
@@ -31,6 +41,25 @@ public abstract class BaseMongoTestInstance {
     protected Course course9;
     protected Course course10;
 
+    // Test user and customer data
+    protected User user1;
+    protected User user2;
+    protected User user3;
+    protected User user4;
+    protected User user5;
+    protected User user6;
+    protected User user7;
+    protected User user8;
+
+    protected Customer customer1;
+    protected Customer customer2;
+    protected Customer customer3;
+    protected Customer customer4;
+    protected Customer customer5;
+    protected Customer customer6;
+    protected Customer customer7;
+    protected Customer customer8;
+
     public BaseMongoTestInstance() {
         // Initialize test data
         course1 = new Course(1L, "Introduction to Computer Science", createDate(2016, 6, 18), 50, true, "Introduction to fundamental concepts of computer science.");
@@ -43,14 +72,42 @@ public abstract class BaseMongoTestInstance {
         course8 = new Course(8L, "Biology I", createDate(2015, 6, 18), 20, true, "Introduction to cellular biology and genetics.");
         course9 = new Course(9L, "Biology II", createDate(2013, 6, 18), 54, true, "Advanced topics in biology including evolution and ecology.");
         course10 = new Course(10L, "English Literature I", createDate(2025, 6, 18), 10, false, "Exploration of classic works of English literature and literary analysis.");
+        
+        // Initialize user and customer test data
+        // Use shared INSTANCE calendar (not a local variable) so tests can manipulate it
+        user1 = new User(1L, "Name 1", "Surname 1", 35, INSTANCE.toInstant(), User.Status.PASSIVE, User.Type.USER);
+        customer1 = new Customer(1L, "Customer 1", 20, INSTANCE.toInstant(), user1);
+        INSTANCE.add(Calendar.MONTH, -1);
+        user2 = new User(2L, "Name 2", "Surname 1", 36, INSTANCE.toInstant(), User.Status.ACTIVE, User.Type.ADMIN);
+        customer2 = new Customer(2L, "Customer 2", 21, INSTANCE.toInstant(), user2);
+        INSTANCE.add(Calendar.MONTH, -1);
+        user3 = new User(3L, "Name 3", "Surname 1", 37, INSTANCE.toInstant(), User.Status.PASSIVE, User.Type.USER);
+        customer3 = new Customer(3L, "Customer 3", 22, INSTANCE.toInstant(), user3);
+        INSTANCE.add(Calendar.MONTH, -1);
+        user4 = new User(4L, "Name 4", "Surname 1", 38, INSTANCE.toInstant(), User.Status.ACTIVE, User.Type.USER);
+        customer4 = new Customer(4L, "Customer 4", 23, INSTANCE.toInstant(), user4);
+        INSTANCE.add(Calendar.MONTH, -1);
+        user5 = new User(5L, "Name 5", "Surname 1", 39, INSTANCE.toInstant(), User.Status.PASSIVE, User.Type.ADMIN);
+        customer5 = new Customer(5L, "Customer 5", 24, INSTANCE.toInstant(), user5);
+        INSTANCE.add(Calendar.MONTH, -1);
+        user6 = new User(6L, "Name 6", "Surname 1", 40, INSTANCE.toInstant(), User.Status.ACTIVE, User.Type.ADMIN);
+        customer6 = new Customer(6L, "Customer 6", 25, INSTANCE.toInstant(), user6);
+        INSTANCE.add(Calendar.MONTH, -1);
+        user7 = new User(7L, "Name 7", "Surname 1", 41, INSTANCE.toInstant(), User.Status.ACTIVE, User.Type.USER);
+        customer7 = new Customer(7L, "Customer 7", 26, INSTANCE.toInstant(), user7);
+        INSTANCE.add(Calendar.MONTH, -1);
+        user8 = new User(8L, "Name 8", "Surname 1", 42, INSTANCE.toInstant(), User.Status.PASSIVE, User.Type.ADMIN);
+        customer8 = new Customer(8L, null, 27, INSTANCE.toInstant(), user8);
     }
 
     @BeforeAll
     public void init() {
         // Clear existing data
         courseRepository.deleteAll();
+        userRepository.deleteAll();
+        customerRepository.deleteAll();
         
-        // Insert test data
+        // Insert course test data
         courseRepository.save(course1);
         courseRepository.save(course2);
         courseRepository.save(course3);
@@ -61,6 +118,26 @@ public abstract class BaseMongoTestInstance {
         courseRepository.save(course8);
         courseRepository.save(course9);
         courseRepository.save(course10);
+        
+        // Insert user test data
+        userRepository.save(user1);
+        userRepository.save(user2);
+        userRepository.save(user3);
+        userRepository.save(user4);
+        userRepository.save(user5);
+        userRepository.save(user6);
+        userRepository.save(user7);
+        userRepository.save(user8);
+        
+        // Insert customer test data
+        customerRepository.save(customer1);
+        customerRepository.save(customer2);
+        customerRepository.save(customer3);
+        customerRepository.save(customer4);
+        customerRepository.save(customer5);
+        customerRepository.save(customer6);
+        customerRepository.save(customer7);
+        customerRepository.save(customer8);
     }
 
     /**
