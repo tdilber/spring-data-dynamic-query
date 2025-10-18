@@ -1,0 +1,17 @@
+spring:
+  elasticsearch:
+    # Elasticsearch configuration for tests
+    # You can use Testcontainers or embedded Elasticsearch for actual testing
+    uris: http://localhost:9200
+    
+  # Disable JPA since we're using Elasticsearch
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    
+logging:
+  level:
+    org.springframework.data.elasticsearch: DEBUG
+    com.beyt.jdq.elasticsearch: DEBUG
+
