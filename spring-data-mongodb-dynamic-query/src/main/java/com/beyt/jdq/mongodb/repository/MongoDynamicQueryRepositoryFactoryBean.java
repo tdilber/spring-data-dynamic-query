@@ -11,6 +11,7 @@ import org.springframework.data.repository.core.RepositoryInformation;
 import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.lang.NonNull;
+import org.springframework.util.Assert;
 
 import java.io.Serializable;
 
@@ -54,16 +55,10 @@ public class MongoDynamicQueryRepositoryFactoryBean<R extends Repository<T, ID>,
         }
 
         @Override
-        @NonNull
-        protected Object getTargetRepository(@NonNull RepositoryInformation information) {
-            MongoEntityInformation<?, Serializable> entityInformation = 
-                getEntityInformation(information.getDomainType());
-            
-            return new MongoDynamicQueryRepositoryImpl<>(
-                entityInformation,
-                mongoOperations,
-                mongoSearchQueryTemplate
-            );
+        protected Object getTargetRepository(RepositoryInformation information) {
+            MongoEntityInformation<?, Serializable> entityInformation =
+                    getEntityInformation(information.getDomainType());
+            return getTargetRepositoryViaReflection(information, entityInformation, mongoOperations, mongoSearchQueryTemplate);
         }
 
         @Override
