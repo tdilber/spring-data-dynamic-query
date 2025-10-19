@@ -56,7 +56,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @ActiveProfiles("estest")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Disabled("TODO: Enable after previous tests pass")
 public class S9_Query_Builder extends BaseElasticsearchJoinTestInstance {
     private @Autowired ElasticsearchAdminUserRepository adminUserRepository;
 

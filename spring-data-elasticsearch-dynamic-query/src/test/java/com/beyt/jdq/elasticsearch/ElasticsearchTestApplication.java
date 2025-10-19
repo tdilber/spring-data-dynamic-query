@@ -1,5 +1,6 @@
 package com.beyt.jdq.elasticsearch;
 
+import com.beyt.jdq.core.annotation.EnableDynamicQueryArgumentResolvers;
 import com.beyt.jdq.elasticsearch.annotation.EnableElasticsearchDynamicQuery;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
  */
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class})
 @EnableElasticsearchDynamicQuery
+@EnableDynamicQueryArgumentResolvers
 public class ElasticsearchTestApplication {
 
     public static void main(String[] args) {

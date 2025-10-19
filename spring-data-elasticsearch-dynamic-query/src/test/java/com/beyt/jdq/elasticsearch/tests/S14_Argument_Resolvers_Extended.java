@@ -4,7 +4,6 @@ import com.beyt.jdq.elasticsearch.ElasticsearchTestApplication;
 import com.beyt.jdq.elasticsearch.entity.Customer;
 import com.beyt.jdq.elasticsearch.entity.User;
 import com.beyt.jdq.elasticsearch.util.TestUtil;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,18 +31,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("estest")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Disabled("TODO: Enable after previous tests pass")
 public class S14_Argument_Resolvers_Extended extends BaseElasticsearchTestInstance {
 
     @Autowired
     private MockMvc mockMvc;
 
-    private static final String CUSTOMER_CRITERIA_API_URL = "/mongo-test-api/customer";
-    private static final String USER_CRITERIA_API_URL = "/mongo-test-api/user";
-    private static final String CUSTOMER_SEARCH_LIST_API_URL = "/mongo-test-api/customer/as-list";
-    private static final String CUSTOMER_SEARCH_PAGE_API_URL = "/mongo-test-api/customer/as-page";
-    private static final String USER_SEARCH_LIST_API_URL = "/mongo-test-api/user/as-list";
-    private static final String USER_SEARCH_PAGE_API_URL = "/mongo-test-api/user/as-page";
+    private static final String CUSTOMER_CRITERIA_API_URL = "/elasticsearch-test-api/customer";
+    private static final String USER_CRITERIA_API_URL = "/elasticsearch-test-api/user";
+    private static final String CUSTOMER_SEARCH_LIST_API_URL = "/elasticsearch-test-api/customer/as-list";
+    private static final String CUSTOMER_SEARCH_PAGE_API_URL = "/elasticsearch-test-api/customer/as-page";
+    private static final String USER_SEARCH_LIST_API_URL = "/elasticsearch-test-api/user/as-list";
+    private static final String USER_SEARCH_PAGE_API_URL = "/elasticsearch-test-api/user/as-page";
 
     @Test
     public void argumentCriteriaListTests() throws Exception {

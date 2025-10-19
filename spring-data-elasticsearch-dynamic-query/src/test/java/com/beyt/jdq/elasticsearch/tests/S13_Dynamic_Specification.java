@@ -4,7 +4,6 @@ import com.beyt.jdq.core.helper.QueryHelper;
 import com.beyt.jdq.core.model.enums.JoinType;
 import com.beyt.jdq.elasticsearch.ElasticsearchTestApplication;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @ActiveProfiles("estest")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Disabled("TODO: Enable after previous tests pass")
 class S13_Dynamic_Specification extends BaseElasticsearchTestInstance {
 
     @Test

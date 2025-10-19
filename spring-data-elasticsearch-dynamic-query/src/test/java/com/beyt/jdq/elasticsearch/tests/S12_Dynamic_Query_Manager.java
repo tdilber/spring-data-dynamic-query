@@ -39,7 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @ActiveProfiles("estest")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Disabled("TODO: Enable after previous tests pass")
 class S12_Dynamic_Query_Manager extends BaseElasticsearchTestInstance {
 
     private SimpleDateFormat dateFormat;

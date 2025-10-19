@@ -58,14 +58,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("estest")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Disabled("TODO: Enable after previous tests pass")
 public class S10_Argument_Resolvers extends BaseElasticsearchJoinTestInstance {
 
     @Autowired
     private MockMvc mockMvc;
 
-    private static final String COURSE_SEARCH_LIST_API_URL = "/mongo-test-api/course/as-list";
-    private static final String COURSE_CRITERIA_API_URL = "/mongo-test-api/course";
+    private static final String COURSE_SEARCH_LIST_API_URL = "/elasticsearch-test-api/course/as-list";
+    private static final String COURSE_CRITERIA_API_URL = "/elasticsearch-test-api/course";
 
     /**
      * Test CriteriaList argument resolver with various operators
