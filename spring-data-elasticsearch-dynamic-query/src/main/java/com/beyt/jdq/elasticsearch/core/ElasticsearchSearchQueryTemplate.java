@@ -10,9 +10,9 @@ import com.beyt.jdq.core.model.enums.CriteriaOperator;
 import com.beyt.jdq.core.model.exception.DynamicQueryIllegalArgumentException;
 import com.beyt.jdq.core.util.field.FieldUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.ChildScoreMode;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,8 +21,8 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
-import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
-import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
 import org.springframework.util.CollectionUtils;
 import org.springframework.data.util.Pair;
 
@@ -34,7 +34,6 @@ import java.lang.reflect.ParameterizedType;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.apache.lucene.search.join.ScoreMode;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 /**
@@ -68,7 +67,7 @@ public class ElasticsearchSearchQueryTemplate {
             return findAll(entityClass, dynamicQuery, entityClass);
         }
         
-        NativeSearchQuery query = prepareQuery(entityClass, dynamicQuery);
+        NativeQuery query = prepareQuery(entityClass, dynamicQuery);
         SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
         List<Entity> results = new ArrayList<>();
         
@@ -133,7 +132,7 @@ public class ElasticsearchSearchQueryTemplate {
         }
         
         // Execute query and convert to result type
-        NativeSearchQuery query = prepareQuery(entityClass, queryForES);
+        NativeQuery query = prepareQuery(entityClass, queryForES);
         SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
         
         // For nested field projections, we need to flatten the results
@@ -189,8 +188,8 @@ public class ElasticsearchSearchQueryTemplate {
         if (!CollectionUtils.isEmpty(dynamicQuery.getSelect())) {
             return findAllAsPage(entityClass, dynamicQuery, entityClass);
         }
-        
-        NativeSearchQuery query = prepareQuery(entityClass, dynamicQuery);
+
+        NativeQuery query = prepareQuery(entityClass, dynamicQuery);
         SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
         
         List<Entity> results = searchHits.stream()
@@ -249,7 +248,7 @@ public class ElasticsearchSearchQueryTemplate {
         }
         
         // Execute query and convert to result type
-        NativeSearchQuery query = prepareQuery(entityClass, queryForES);
+        NativeQuery query = prepareQuery(entityClass, queryForES);
         SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
         
         // For nested field projections, we need to flatten the results
@@ -405,19 +404,19 @@ public class ElasticsearchSearchQueryTemplate {
      */
     public <Entity> long count(Class<Entity> entityClass, List<com.beyt.jdq.core.model.Criteria> searchCriteriaList) {
         DynamicQuery dynamicQuery = DynamicQuery.of(searchCriteriaList);
-        NativeSearchQuery query = prepareQuery(entityClass, dynamicQuery);
+        NativeQuery query = prepareQuery(entityClass, dynamicQuery);
         SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
         return searchHits.getTotalHits();
     }
 
     /**
-     * Prepare NativeSearchQuery from DynamicQuery
+     * Prepare NativeQuery from DynamicQuery
      */
-    private <Entity> NativeSearchQuery prepareQuery(Class<Entity> entityClass, DynamicQuery dynamicQuery) {
-        NativeSearchQueryBuilder queryBuilder = new NativeSearchQueryBuilder();
+    private <Entity> NativeQuery prepareQuery(Class<Entity> entityClass, DynamicQuery dynamicQuery) {
+        NativeQueryBuilder queryBuilder = new NativeQueryBuilder();
         
         // Build the main query from criteria
-        QueryBuilder mainQuery = buildQueryFromCriteria(dynamicQuery.getWhere());
+        Query mainQuery = buildQueryFromCriteria(dynamicQuery.getWhere());
         queryBuilder.withQuery(mainQuery);
         
         // Build sort object
@@ -441,11 +440,11 @@ public class ElasticsearchSearchQueryTemplate {
     }
 
     /**
-     * Build Elasticsearch QueryBuilder from criteria list
+     * Build Elasticsearch Query from criteria list
      */
-    private QueryBuilder buildQueryFromCriteria(List<com.beyt.jdq.core.model.Criteria> criteriaList) {
+    private Query buildQueryFromCriteria(List<com.beyt.jdq.core.model.Criteria> criteriaList) {
         if (criteriaList == null || criteriaList.isEmpty()) {
-            return QueryBuilders.matchAllQuery();
+            return Query.of(q -> q.matchAll(m -> m));
         }
 
         // Validate OR operator usage
@@ -477,14 +476,15 @@ public class ElasticsearchSearchQueryTemplate {
         }
         
         // Multiple groups - combine with OR
-        BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+        List<Query> shouldQueries = new ArrayList<>();
         for (List<com.beyt.jdq.core.model.Criteria> group : orGroups) {
-            QueryBuilder groupQuery = buildAndQuery(group);
-            orQuery.should(groupQuery);
+            Query groupQuery = buildAndQuery(group);
+            shouldQueries.add(groupQuery);
         }
-        orQuery.minimumShouldMatch(1);
         
-        return orQuery;
+        return Query.of(q -> q.bool(b -> b
+            .should(shouldQueries)
+            .minimumShouldMatch("1")));
     }
     
     /**
@@ -527,24 +527,24 @@ public class ElasticsearchSearchQueryTemplate {
     /**
      * Build AND query from criteria list (no OR operators)
      */
-    private QueryBuilder buildAndQuery(List<com.beyt.jdq.core.model.Criteria> criteriaList) {
+    private Query buildAndQuery(List<com.beyt.jdq.core.model.Criteria> criteriaList) {
         if (criteriaList.isEmpty()) {
-            return QueryBuilders.matchAllQuery();
+            return Query.of(q -> q.matchAll(m -> m));
         }
         
         if (criteriaList.size() == 1) {
             return buildCriteriaQuery(criteriaList.get(0));
         }
         
-        BoolQueryBuilder andQuery = QueryBuilders.boolQuery();
+        List<Query> mustQueries = new ArrayList<>();
         for (com.beyt.jdq.core.model.Criteria criteria : criteriaList) {
-            QueryBuilder criteriaQuery = buildCriteriaQuery(criteria);
+            Query criteriaQuery = buildCriteriaQuery(criteria);
             if (criteriaQuery != null) {
-                andQuery.must(criteriaQuery);
+                mustQueries.add(criteriaQuery);
             }
         }
         
-        return andQuery;
+        return Query.of(q -> q.bool(b -> b.must(mustQueries)));
     }
 
     /**
@@ -552,7 +552,7 @@ public class ElasticsearchSearchQueryTemplate {
      * Handles both regular fields and nested fields
      */
     @SuppressWarnings("unchecked")
-    private QueryBuilder buildCriteriaQuery(com.beyt.jdq.core.model.Criteria criteria) {
+    private Query buildCriteriaQuery(com.beyt.jdq.core.model.Criteria criteria) {
         String fieldName = criteria.getKey();
         CriteriaOperator operator = criteria.getOperation();
         List<Object> values = criteria.getValues();
@@ -592,10 +592,13 @@ public class ElasticsearchSearchQueryTemplate {
                 boolean shouldExist = Boolean.parseBoolean(values.get(0).toString());
                 if (shouldExist) {
                     // Check if the nested field exists (the actual field, not the parent)
-                    return QueryBuilders.existsQuery(normalizedFieldName);
+                    String fieldToCheck = normalizedFieldName;
+                    return Query.of(q -> q.exists(e -> e.field(fieldToCheck)));
                 } else {
                     // Check if the nested field doesn't exist (meaning the parent nested object is null)
-                    return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(normalizedFieldName));
+                    String fieldToCheck = normalizedFieldName;
+                    return Query.of(q -> q.bool(b -> b
+                        .mustNot(Query.of(mq -> mq.exists(e -> e.field(fieldToCheck))))));
                 }
             }
         }
@@ -612,118 +615,168 @@ public class ElasticsearchSearchQueryTemplate {
             case EQUAL:
                 if (values.size() > 1) {
                     // Multiple values - build OR query with match_phrase for each value
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        // Use match_phrase for exact matching with analysis
-                        orQuery.should(QueryBuilders.matchPhraseQuery(fieldName, value));
+                        Object finalValue = value;
+                        shouldQueries.add(Query.of(q -> q.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString()))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
                     // Single value - use match_phrase for exact phrase matching
-                    return QueryBuilders.matchPhraseQuery(fieldName, values.get(0));
+                    Object finalValue = values.get(0);
+                    return Query.of(q -> q.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString())));
                 }
                 
             case NOT_EQUAL:
-                BoolQueryBuilder notEqualQuery = QueryBuilders.boolQuery();
-                notEqualQuery.must(QueryBuilders.existsQuery(fieldName)); // Field must exist
                 if (values.size() > 1) {
                     // Exclude all specified values
+                    List<Query> mustNotQueries = new ArrayList<>();
                     for (Object value : values) {
-                        notEqualQuery.mustNot(QueryBuilders.matchPhraseQuery(fieldName, value));
+                        Object finalValue = value;
+                        mustNotQueries.add(Query.of(q -> q.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString()))));
                     }
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(mustNotQueries)));
                 } else {
                     // Exclude single value
-                    notEqualQuery.mustNot(QueryBuilders.matchPhraseQuery(fieldName, values.get(0)));
+                    Object finalValue = values.get(0);
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(Query.of(mnq -> mnq.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString()))))));
                 }
-                return notEqualQuery;
+
                 
             case CONTAIN:
                 if (values.size() > 1) {
                     // Multiple values - OR logic (match any)
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        orQuery.should(QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(value.toString()).toLowerCase() + "*")
-                            .caseInsensitive(true));
+                        String wildcardPattern = "*" + escapeWildcard(value.toString()).toLowerCase() + "*";
+                        shouldQueries.add(Query.of(q -> q.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
-                    return QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*")
-                        .caseInsensitive(true);
+                    String wildcardPattern = "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*";
+                    return Query.of(q -> q.wildcard(w -> w
+                        .field(fieldName)
+                        .value(wildcardPattern)
+                        .caseInsensitive(true)));
                 }
                 
             case DOES_NOT_CONTAIN:
                 // Multiple values - AND logic (must not contain any)
-                BoolQueryBuilder notContainQuery = QueryBuilders.boolQuery();
-                notContainQuery.must(QueryBuilders.existsQuery(fieldName)); // Field must exist
                 if (values.size() > 1) {
+                    List<Query> mustNotQueries = new ArrayList<>();
                     for (Object value : values) {
-                        notContainQuery.mustNot(
-                            QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(value.toString()).toLowerCase() + "*")
-                                .caseInsensitive(true)
-                        );
+                        String wildcardPattern = "*" + escapeWildcard(value.toString()).toLowerCase() + "*";
+                        mustNotQueries.add(Query.of(q -> q.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))));
                     }
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(mustNotQueries)));
                 } else {
-                    notContainQuery.mustNot(
-                        QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*")
-                            .caseInsensitive(true)
-                    );
+                    String wildcardPattern = "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*";
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(Query.of(mnq -> mnq.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))))));
                 }
-                return notContainQuery;
                 
             case START_WITH:
                 if (values.size() > 1) {
                     // Multiple values - OR logic (match any)
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        orQuery.should(QueryBuilders.prefixQuery(fieldName, value.toString().toLowerCase())
-                            .caseInsensitive(true));
+                        String prefixValue = value.toString().toLowerCase();
+                        shouldQueries.add(Query.of(q -> q.prefix(p -> p
+                            .field(fieldName)
+                            .value(prefixValue)
+                            .caseInsensitive(true))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
-                    return QueryBuilders.prefixQuery(fieldName, values.get(0).toString().toLowerCase())
-                        .caseInsensitive(true);
+                    String prefixValue = values.get(0).toString().toLowerCase();
+                    return Query.of(q -> q.prefix(p -> p
+                        .field(fieldName)
+                        .value(prefixValue)
+                        .caseInsensitive(true)));
                 }
                 
             case END_WITH:
                 if (values.size() > 1) {
                     // Multiple values - OR logic (match any)
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        orQuery.should(QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(value.toString()).toLowerCase())
-                            .caseInsensitive(true));
+                        String wildcardPattern = "*" + escapeWildcard(value.toString()).toLowerCase();
+                        shouldQueries.add(Query.of(q -> q.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
-                    return QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(values.get(0).toString()).toLowerCase())
-                        .caseInsensitive(true);
+                    String wildcardPattern = "*" + escapeWildcard(values.get(0).toString()).toLowerCase();
+                    return Query.of(q -> q.wildcard(w -> w
+                        .field(fieldName)
+                        .value(wildcardPattern)
+                        .caseInsensitive(true)));
                 }
                 
             case GREATER_THAN:
-                return QueryBuilders.rangeQuery(fieldName).gt(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).gt(asJsonData(values.get(0)))));
                 
             case GREATER_THAN_OR_EQUAL:
-                return QueryBuilders.rangeQuery(fieldName).gte(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).gte(asJsonData(values.get(0)))));
                 
             case LESS_THAN:
-                return QueryBuilders.rangeQuery(fieldName).lt(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).lt(asJsonData(values.get(0)))));
                 
             case LESS_THAN_OR_EQUAL:
-                return QueryBuilders.rangeQuery(fieldName).lte(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).lte(asJsonData(values.get(0)))));
                 
             case SPECIFIED:
                 boolean exists = Boolean.parseBoolean(values.get(0).toString());
                 if (exists) {
-                    return QueryBuilders.existsQuery(fieldName);
+                    return Query.of(q -> q.exists(e -> e.field(fieldName)));
                 } else {
-                    return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(fieldName));
+                    return Query.of(q -> q.bool(b -> b
+                        .mustNot(Query.of(mq -> mq.exists(e -> e.field(fieldName))))));
                 }
                 
             default:
                 throw new DynamicQueryIllegalArgumentException("Unsupported operator: " + operator);
+        }
+    }
+    
+    /**
+     * Convert value to JsonData for range queries
+     */
+    private co.elastic.clients.json.JsonData asJsonData(Object value) {
+        if (value instanceof Number) {
+            return co.elastic.clients.json.JsonData.of(((Number) value).doubleValue());
+        } else if (value instanceof String) {
+            return co.elastic.clients.json.JsonData.of((String) value);
+        } else if (value instanceof Boolean) {
+            return co.elastic.clients.json.JsonData.of((Boolean) value);
+        } else {
+            return co.elastic.clients.json.JsonData.of(value.toString());
         }
     }
 
@@ -792,9 +845,9 @@ public class ElasticsearchSearchQueryTemplate {
      * Build a nested query for Elasticsearch
      * Handles multi-level nesting like roles.roleAuthorizations.authorization.menuIcon
      */
-    private QueryBuilder buildNestedQuery(NestedPathInfo pathInfo, CriteriaOperator operator, List<Object> values, boolean isLeftJoin) {
+    private Query buildNestedQuery(NestedPathInfo pathInfo, CriteriaOperator operator, List<Object> values, boolean isLeftJoin) {
         // Build the inner query for the final field
-        QueryBuilder innerQuery = buildFieldQuery(pathInfo.fullPath, operator, values);
+        Query innerQuery = buildFieldQuery(pathInfo.fullPath, operator, values);
         
         if (innerQuery == null) {
             return null;
@@ -805,26 +858,34 @@ public class ElasticsearchSearchQueryTemplate {
         // nested(roles.roleAuthorizations.authorization, nested(roles.roleAuthorizations, nested(roles, query)))
         
         List<String> nestedPaths = pathInfo.nestedPaths;
-        QueryBuilder currentQuery = innerQuery;
+        Query currentQuery = innerQuery;
         
         // Start from the deepest nested path and work outward
         for (int i = nestedPaths.size() - 1; i >= 0; i--) {
             String nestedPath = nestedPaths.get(i);
             
-            // Use SCORE mode for better relevance, or AVG for numeric aggregations
-            ScoreMode scoreMode = ScoreMode.None;
+            // Use None mode for child score
+            ChildScoreMode scoreMode = ChildScoreMode.None;
             
             if (isLeftJoin) {
                 // For left joins, we want to include documents even if the nested path doesn't exist
                 // Wrap in a bool query with should
-                BoolQueryBuilder leftJoinQuery = QueryBuilders.boolQuery();
-                leftJoinQuery.should(QueryBuilders.nestedQuery(nestedPath, currentQuery, scoreMode));
-                leftJoinQuery.should(QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(nestedPath)));
-                leftJoinQuery.minimumShouldMatch(1);
-                currentQuery = leftJoinQuery;
+                Query finalCurrentQuery = currentQuery;
+                currentQuery = Query.of(q -> q.bool(b -> b
+                    .should(Query.of(sq -> sq.nested(n -> n
+                        .path(nestedPath)
+                        .query(finalCurrentQuery)
+                        .scoreMode(scoreMode))))
+                    .should(Query.of(sq -> sq.bool(bq -> bq
+                        .mustNot(Query.of(mq -> mq.exists(e -> e.field(nestedPath)))))))
+                    .minimumShouldMatch("1")));
             } else {
                 // Inner join - use nested query directly
-                currentQuery = QueryBuilders.nestedQuery(nestedPath, currentQuery, scoreMode);
+                Query finalCurrentQuery = currentQuery;
+                currentQuery = Query.of(q -> q.nested(n -> n
+                    .path(nestedPath)
+                    .query(finalCurrentQuery)
+                    .scoreMode(scoreMode)));
             }
         }
         
@@ -835,7 +896,7 @@ public class ElasticsearchSearchQueryTemplate {
      * Build a query for a single field (used within nested queries)
      * This is similar to buildCriteriaQuery but for a specific field without nesting logic
      */
-    private QueryBuilder buildFieldQuery(String fieldName, CriteriaOperator operator, List<Object> values) {
+    private Query buildFieldQuery(String fieldName, CriteriaOperator operator, List<Object> values) {
         if (values == null || values.isEmpty()) {
             return null;
         }
@@ -843,110 +904,141 @@ public class ElasticsearchSearchQueryTemplate {
         switch (operator) {
             case EQUAL:
                 if (values.size() > 1) {
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        orQuery.should(QueryBuilders.matchPhraseQuery(fieldName, value));
+                        Object finalValue = value;
+                        shouldQueries.add(Query.of(q -> q.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString()))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
-                    return QueryBuilders.matchPhraseQuery(fieldName, values.get(0));
+                    Object finalValue = values.get(0);
+                    return Query.of(q -> q.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString())));
                 }
                 
             case NOT_EQUAL:
-                BoolQueryBuilder notEqualQuery = QueryBuilders.boolQuery();
-                notEqualQuery.must(QueryBuilders.existsQuery(fieldName));
                 if (values.size() > 1) {
+                    List<Query> mustNotQueries = new ArrayList<>();
                     for (Object value : values) {
-                        notEqualQuery.mustNot(QueryBuilders.matchPhraseQuery(fieldName, value));
+                        Object finalValue = value;
+                        mustNotQueries.add(Query.of(q -> q.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString()))));
                     }
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(mustNotQueries)));
                 } else {
-                    notEqualQuery.mustNot(QueryBuilders.matchPhraseQuery(fieldName, values.get(0)));
+                    Object finalValue = values.get(0);
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(Query.of(mnq -> mnq.matchPhrase(mp -> mp.field(fieldName).query(finalValue.toString()))))));
                 }
-                return notEqualQuery;
                 
             case CONTAIN:
                 if (values.size() > 1) {
-                    // Multiple values - OR logic (match any)
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        orQuery.should(QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(value.toString()).toLowerCase() + "*")
-                            .caseInsensitive(true));
+                        String wildcardPattern = "*" + escapeWildcard(value.toString()).toLowerCase() + "*";
+                        shouldQueries.add(Query.of(q -> q.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
-                    return QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*")
-                        .caseInsensitive(true);
+                    String wildcardPattern = "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*";
+                    return Query.of(q -> q.wildcard(w -> w
+                        .field(fieldName)
+                        .value(wildcardPattern)
+                        .caseInsensitive(true)));
                 }
                 
             case DOES_NOT_CONTAIN:
-                // Multiple values - AND logic (must not contain any)
-                BoolQueryBuilder notContainQuery = QueryBuilders.boolQuery();
-                notContainQuery.must(QueryBuilders.existsQuery(fieldName)); // Field must exist
                 if (values.size() > 1) {
+                    List<Query> mustNotQueries = new ArrayList<>();
                     for (Object value : values) {
-                        notContainQuery.mustNot(
-                            QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(value.toString()).toLowerCase() + "*")
-                                .caseInsensitive(true)
-                        );
+                        String wildcardPattern = "*" + escapeWildcard(value.toString()).toLowerCase() + "*";
+                        mustNotQueries.add(Query.of(q -> q.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))));
                     }
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(mustNotQueries)));
                 } else {
-                    notContainQuery.mustNot(
-                        QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*")
-                            .caseInsensitive(true)
-                    );
+                    String wildcardPattern = "*" + escapeWildcard(values.get(0).toString()).toLowerCase() + "*";
+                    return Query.of(q -> q.bool(b -> b
+                        .must(Query.of(mq -> mq.exists(e -> e.field(fieldName))))
+                        .mustNot(Query.of(mnq -> mnq.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))))));
                 }
-                return notContainQuery;
                 
             case START_WITH:
                 if (values.size() > 1) {
-                    // Multiple values - OR logic (match any)
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        orQuery.should(QueryBuilders.prefixQuery(fieldName, value.toString().toLowerCase())
-                            .caseInsensitive(true));
+                        String prefixValue = value.toString().toLowerCase();
+                        shouldQueries.add(Query.of(q -> q.prefix(p -> p
+                            .field(fieldName)
+                            .value(prefixValue)
+                            .caseInsensitive(true))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
-                    return QueryBuilders.prefixQuery(fieldName, values.get(0).toString().toLowerCase())
-                        .caseInsensitive(true);
+                    String prefixValue = values.get(0).toString().toLowerCase();
+                    return Query.of(q -> q.prefix(p -> p
+                        .field(fieldName)
+                        .value(prefixValue)
+                        .caseInsensitive(true)));
                 }
                 
             case END_WITH:
                 if (values.size() > 1) {
-                    // Multiple values - OR logic (match any)
-                    BoolQueryBuilder orQuery = QueryBuilders.boolQuery();
+                    List<Query> shouldQueries = new ArrayList<>();
                     for (Object value : values) {
-                        orQuery.should(QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(value.toString()).toLowerCase())
-                            .caseInsensitive(true));
+                        String wildcardPattern = "*" + escapeWildcard(value.toString()).toLowerCase();
+                        shouldQueries.add(Query.of(q -> q.wildcard(w -> w
+                            .field(fieldName)
+                            .value(wildcardPattern)
+                            .caseInsensitive(true))));
                     }
-                    orQuery.minimumShouldMatch(1);
-                    return orQuery;
+                    return Query.of(q -> q.bool(b -> b
+                        .should(shouldQueries)
+                        .minimumShouldMatch("1")));
                 } else {
-                    return QueryBuilders.wildcardQuery(fieldName, "*" + escapeWildcard(values.get(0).toString()).toLowerCase())
-                        .caseInsensitive(true);
+                    String wildcardPattern = "*" + escapeWildcard(values.get(0).toString()).toLowerCase();
+                    return Query.of(q -> q.wildcard(w -> w
+                        .field(fieldName)
+                        .value(wildcardPattern)
+                        .caseInsensitive(true)));
                 }
                 
             case GREATER_THAN:
-                return QueryBuilders.rangeQuery(fieldName).gt(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).gt(asJsonData(values.get(0)))));
                 
             case GREATER_THAN_OR_EQUAL:
-                return QueryBuilders.rangeQuery(fieldName).gte(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).gte(asJsonData(values.get(0)))));
                 
             case LESS_THAN:
-                return QueryBuilders.rangeQuery(fieldName).lt(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).lt(asJsonData(values.get(0)))));
                 
             case LESS_THAN_OR_EQUAL:
-                return QueryBuilders.rangeQuery(fieldName).lte(values.get(0));
+                return Query.of(q -> q.range(r -> r.field(fieldName).lte(asJsonData(values.get(0)))));
                 
             case SPECIFIED:
                 boolean exists = Boolean.parseBoolean(values.get(0).toString());
                 if (exists) {
-                    return QueryBuilders.existsQuery(fieldName);
+                    return Query.of(q -> q.exists(e -> e.field(fieldName)));
                 } else {
-                    return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(fieldName));
+                    return Query.of(q -> q.bool(b -> b
+                        .mustNot(Query.of(mq -> mq.exists(e -> e.field(fieldName))))));
                 }
                 
             default:
