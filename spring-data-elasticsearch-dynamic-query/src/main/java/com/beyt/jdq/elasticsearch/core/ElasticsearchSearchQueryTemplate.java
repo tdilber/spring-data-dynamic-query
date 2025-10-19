@@ -116,8 +116,24 @@ public class ElasticsearchSearchQueryTemplate {
             }
         }
         
+        // Check if we need to apply ordering/pagination after flattening
+        boolean needsPostFlatteningOrdering = needsPostFlatteningOrdering(dynamicQuery);
+        
+        // Only skip ES-level pagination/ordering if we have nested field ordering
+        DynamicQuery queryForES = dynamicQuery;
+        if (needsPostFlatteningOrdering) {
+            queryForES = new DynamicQuery();
+            queryForES.setWhere(dynamicQuery.getWhere());
+            queryForES.setSelect(dynamicQuery.getSelect());
+            queryForES.setDistinct(false); // Will apply distinct after
+            // Don't set orderBy - ES can't sort by nested fields, will sort after flattening
+            // Set a large page size to get all results for post-processing
+            queryForES.setPageNumber(0);
+            queryForES.setPageSize(10000); // Large enough to get all results
+        }
+        
         // Execute query and convert to result type
-        NativeSearchQuery query = prepareQuery(entityClass, dynamicQuery);
+        NativeSearchQuery query = prepareQuery(entityClass, queryForES);
         SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
         
         // For nested field projections, we need to flatten the results
@@ -128,9 +144,28 @@ public class ElasticsearchSearchQueryTemplate {
             results.addAll(flattenedResults);
         }
         
+        // Apply ordering after flattening if needed
+        if (needsPostFlatteningOrdering && dynamicQuery.getOrderBy() != null && !dynamicQuery.getOrderBy().isEmpty()) {
+            results = applyOrdering(results, dynamicQuery);
+        }
+        
         // Handle distinct if needed
         if (dynamicQuery.isDistinct()) {
             results = results.stream().distinct().collect(Collectors.toList());
+        }
+        
+        // Apply pagination after flattening/ordering if needed
+        if (needsPostFlatteningOrdering && dynamicQuery.getPageNumber() != null && dynamicQuery.getPageSize() != null) {
+            int pageNumber = dynamicQuery.getPageNumber();
+            int pageSize = dynamicQuery.getPageSize();
+            int fromIndex = pageNumber * pageSize;
+            int toIndex = Math.min(fromIndex + pageSize, results.size());
+            
+            if (fromIndex < results.size()) {
+                results = new ArrayList<>(results.subList(fromIndex, toIndex));
+            } else {
+                results = new ArrayList<>();
+            }
         }
         
         return results;
@@ -199,14 +234,15 @@ public class ElasticsearchSearchQueryTemplate {
         boolean needsPostFlatteningOrdering = needsPostFlatteningOrdering(dynamicQuery);
         
         // Only skip ES-level pagination/ordering if we have nested field ordering
-        // For simple projections without nested ordering, let Elasticsearch handle it
+        // Elasticsearch cannot sort parent documents by nested field values properly,
+        // so we need to fetch all results, flatten them, and sort in memory
         DynamicQuery queryForES = dynamicQuery;
         if (needsPostFlatteningOrdering) {
             queryForES = new DynamicQuery();
             queryForES.setWhere(dynamicQuery.getWhere());
             queryForES.setSelect(dynamicQuery.getSelect());
             queryForES.setDistinct(false); // Will apply distinct after
-            // Don't set orderBy - will apply after flattening
+            // Don't set orderBy - ES can't sort by nested fields, will sort after flattening
             // Set a large page size to get all results for post-processing
             queryForES.setPageNumber(0);
             queryForES.setPageSize(10000); // Large enough to get all results
