@@ -115,7 +115,11 @@ public class Course {
         if (!(o instanceof Course)) return false;
         Course course = (Course) o;
         return Objects.equals(id, course.id) && 
-               Objects.equals(name, course.name);
+               Objects.equals(name, course.name) &&
+               Objects.equals(startDate, course.startDate) &&
+               Objects.equals(maxStudentCount, course.maxStudentCount) &&
+               Objects.equals(active, course.active) &&
+               Objects.equals(description, course.description);
     }
 
     @Override

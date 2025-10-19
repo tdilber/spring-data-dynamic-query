@@ -2,8 +2,13 @@ package com.beyt.jdq.elasticsearch.core;
 
 import com.beyt.jdq.core.deserializer.IDeserializer;
 import com.beyt.jdq.core.model.DynamicQuery;
+import com.beyt.jdq.core.model.annotation.JdqField;
+import com.beyt.jdq.core.model.annotation.JdqModel;
+import com.beyt.jdq.core.model.annotation.JdqSubModel;
+import com.beyt.jdq.core.model.annotation.JdqIgnoreField;
 import com.beyt.jdq.core.model.enums.CriteriaOperator;
 import com.beyt.jdq.core.model.exception.DynamicQueryIllegalArgumentException;
+import com.beyt.jdq.core.util.field.FieldUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -18,9 +23,13 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
+import org.springframework.util.CollectionUtils;
 import org.springframework.data.util.Pair;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
 import java.lang.reflect.ParameterizedType;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -65,11 +74,34 @@ public class ElasticsearchSearchQueryTemplate {
      * Find all entities with projection matching the dynamic query
      */
     public <Entity, ResultType> List<ResultType> findAll(Class<Entity> entityClass, DynamicQuery dynamicQuery, Class<ResultType> resultClass) {
-        // For now, return as the same type - projection will be implemented later
-        List<Entity> results = findAll(entityClass, dynamicQuery);
-        return results.stream()
-                .map(entity -> (ResultType) entity)
+        // Extract @JdqModel annotations if present
+        extractIfJdqModel(dynamicQuery, resultClass);
+        
+        // Check if projection is needed
+        if (CollectionUtils.isEmpty(dynamicQuery.getSelect()) && entityClass.equals(resultClass)) {
+            // No projection, just cast
+            List<Entity> results = findAll(entityClass, dynamicQuery);
+            return results.stream()
+                    .map(entity -> (ResultType) entity)
+                    .collect(Collectors.toList());
+        }
+        
+        // Execute query and convert to result type
+        NativeSearchQuery query = prepareQuery(entityClass, dynamicQuery);
+        SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
+        
+        List<ResultType> results = searchHits.stream()
+                .map(SearchHit::getContent)
+                .map(entity -> convertEntityToResultType(entity, resultClass, dynamicQuery))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+        
+        // Handle distinct if needed
+        if (dynamicQuery.isDistinct()) {
+            results = results.stream().distinct().collect(Collectors.toList());
+        }
+        
+        return results;
     }
 
     /**
@@ -103,8 +135,39 @@ public class ElasticsearchSearchQueryTemplate {
      * Find all entities as page with projection matching the dynamic query
      */
     public <Entity, ResultType> Page<ResultType> findAllAsPage(Class<Entity> entityClass, DynamicQuery dynamicQuery, Class<ResultType> resultClass) {
-        Page<Entity> page = findAllAsPage(entityClass, dynamicQuery);
-        return page.map(entity -> (ResultType) entity);
+        // Extract @JdqModel annotations if present
+        extractIfJdqModel(dynamicQuery, resultClass);
+        
+        // Check if projection is needed
+        if (CollectionUtils.isEmpty(dynamicQuery.getSelect()) && entityClass.equals(resultClass)) {
+            // No projection, just cast
+            Page<Entity> page = findAllAsPage(entityClass, dynamicQuery);
+            return page.map(entity -> (ResultType) entity);
+        }
+        
+        // Execute query and convert to result type
+        NativeSearchQuery query = prepareQuery(entityClass, dynamicQuery);
+        SearchHits<Entity> searchHits = elasticsearchOperations.search(query, entityClass);
+        
+        List<ResultType> results = searchHits.stream()
+                .map(SearchHit::getContent)
+                .map(entity -> convertEntityToResultType(entity, resultClass, dynamicQuery))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        
+        // Handle distinct if needed
+        if (dynamicQuery.isDistinct()) {
+            results = results.stream().distinct().collect(Collectors.toList());
+        }
+        
+        return new org.springframework.data.domain.PageImpl<>(
+                results,
+                PageRequest.of(
+                        dynamicQuery.getPageNumber() != null ? dynamicQuery.getPageNumber() : 0,
+                        dynamicQuery.getPageSize() != null ? dynamicQuery.getPageSize() : 20
+                ),
+                searchHits.getTotalHits()
+        );
     }
 
     /**
@@ -530,6 +593,327 @@ public class ElasticsearchSearchQueryTemplate {
         }
     }
     
+    /**
+     * Extract field mappings from @JdqModel annotated class
+     */
+    private <ResultType> void extractIfJdqModel(DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass) {
+        if (!resultTypeClass.isAnnotationPresent(JdqModel.class)) {
+            return;
+        }
+
+        List<Pair<String, String>> select = new ArrayList<>();
+        recursiveSubModelFiller(resultTypeClass, select, new ArrayList<>(), "");
+        dynamicQuery.setSelect(select);
+    }
+
+    /**
+     * Recursively process @JdqSubModel and @JdqField annotations
+     */
+    private <ResultType> void recursiveSubModelFiller(Class<ResultType> resultTypeClass, 
+                                                      List<Pair<String, String>> select, 
+                                                      List<String> dbPrefixList, 
+                                                      String entityPrefix) {
+        Field[] declaredFields;
+        if (resultTypeClass.isRecord()) {
+            RecordComponent[] recordComponents = resultTypeClass.getRecordComponents();
+            declaredFields = new Field[recordComponents.length];
+            for (int i = 0; i < recordComponents.length; i++) {
+                try {
+                    declaredFields[i] = resultTypeClass.getDeclaredField(recordComponents[i].getName());
+                } catch (NoSuchFieldException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        } else {
+            declaredFields = resultTypeClass.getDeclaredFields();
+        }
+
+        for (Field declaredField : declaredFields) {
+            if (declaredField.isAnnotationPresent(JdqSubModel.class)) {
+                JdqSubModel annotation = declaredField.getAnnotation(JdqSubModel.class);
+                String subModelValue = annotation.value();
+                
+                List<String> newPrefixList = new ArrayList<>(dbPrefixList);
+                if (StringUtils.isNotBlank(subModelValue)) {
+                    newPrefixList.add(subModelValue);
+                }
+                recursiveSubModelFiller(declaredField.getType(), select, newPrefixList, 
+                    entityPrefix + declaredField.getName() + ".");
+            } else if (FieldUtil.isSupportedType(declaredField.getType())) {
+                if (declaredField.isAnnotationPresent(JdqIgnoreField.class)) {
+                    if (resultTypeClass.isRecord()) {
+                        throw new DynamicQueryIllegalArgumentException("Record class can not have @JdqIgnoreField annotation");
+                    }
+                    continue;
+                }
+
+                if (declaredField.isAnnotationPresent(JdqField.class)) {
+                    select.add(Pair.of(
+                        prefixCreator(dbPrefixList) + declaredField.getAnnotation(JdqField.class).value(), 
+                        entityPrefix + declaredField.getName()
+                    ));
+                } else {
+                    select.add(Pair.of(
+                        prefixCreator(dbPrefixList) + declaredField.getName(),
+                        entityPrefix + declaredField.getName()
+                    ));
+                }
+            } else {
+                if (resultTypeClass.isRecord()) {
+                    throw new DynamicQueryIllegalArgumentException("Record didnt support nested model type: " + declaredField.getType().getName());
+                }
+            }
+        }
+    }
+
+    private String prefixCreator(List<String> prefixList) {
+        String collect = String.join(".", prefixList);
+        if (StringUtils.isNotBlank(collect)) {
+            collect += ".";
+        }
+        return collect;
+    }
+
+    /**
+     * Convert entity to result type using field mappings from DynamicQuery select
+     */
+    private <Entity, ResultType> ResultType convertEntityToResultType(
+            Entity entity, 
+            Class<ResultType> resultClass, 
+            DynamicQuery dynamicQuery) {
+        try {
+            if (CollectionUtils.isEmpty(dynamicQuery.getSelect())) {
+                // No projection specified, try to cast
+                if (resultClass.isAssignableFrom(entity.getClass())) {
+                    return resultClass.cast(entity);
+                }
+                return null;
+            }
+
+            // Build a map of field names to values from the entity
+            Map<String, Object> fieldValues = new HashMap<>();
+            for (Pair<String, String> selectPair : dynamicQuery.getSelect()) {
+                String sourceField = selectPair.getFirst();   // Entity field path (e.g., "name", "department.name")
+                String targetField = selectPair.getSecond();  // Result class field name
+                
+                // Get value from entity using reflection
+                Object value = getFieldValue(entity, sourceField);
+                fieldValues.put(targetField, value);
+            }
+
+            return createInstance(resultClass, fieldValues, dynamicQuery);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Get field value from entity using reflection, supports nested paths
+     */
+    private Object getFieldValue(Object entity, String fieldPath) {
+        try {
+            String[] parts = fieldPath.split("\\.");
+            Object current = entity;
+            
+            for (String part : parts) {
+                if (current == null) {
+                    return null;
+                }
+                
+                // Try to get field value
+                Field field = findField(current.getClass(), part);
+                if (field != null) {
+                    field.setAccessible(true);
+                    current = field.get(current);
+                } else {
+                    // Try getter method
+                    String getterName = "get" + part.substring(0, 1).toUpperCase() + part.substring(1);
+                    try {
+                        Method getter = current.getClass().getMethod(getterName);
+                        current = getter.invoke(current);
+                    } catch (NoSuchMethodException e) {
+                        return null;
+                    }
+                }
+            }
+            
+            return current;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Find field in class hierarchy
+     */
+    private Field findField(Class<?> clazz, String fieldName) {
+        Class<?> current = clazz;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Create instance of result class using field values
+     */
+    private <ResultType> ResultType createInstance(
+            Class<ResultType> resultClass, 
+            Map<String, Object> fieldValues,
+            DynamicQuery dynamicQuery) throws Exception {
+        
+        if (resultClass.isRecord()) {
+            return createRecordInstance(resultClass, fieldValues, dynamicQuery);
+        } else {
+            return createClassInstance(resultClass, fieldValues, dynamicQuery);
+        }
+    }
+
+    /**
+     * Create record instance using constructor
+     */
+    private <ResultType> ResultType createRecordInstance(
+            Class<ResultType> resultClass, 
+            Map<String, Object> fieldValues,
+            DynamicQuery dynamicQuery) throws Exception {
+        
+        RecordComponent[] components = resultClass.getRecordComponents();
+        Class<?>[] paramTypes = new Class<?>[components.length];
+        Object[] args = new Object[components.length];
+        
+        for (int i = 0; i < components.length; i++) {
+            paramTypes[i] = components[i].getType();
+            String fieldName = components[i].getName();
+            
+            // Get the field to check for @JdqSubModel annotation
+            Field field = resultClass.getDeclaredField(fieldName);
+            
+            // Check if it's a sub-model
+            if (field.isAnnotationPresent(JdqSubModel.class)) {
+                // Recursively create sub-model
+                Map<String, Object> subFieldValues = new HashMap<>();
+                String prefix = fieldName + ".";
+                for (Map.Entry<String, Object> entry : fieldValues.entrySet()) {
+                    if (entry.getKey().startsWith(prefix)) {
+                        subFieldValues.put(entry.getKey().substring(prefix.length()), entry.getValue());
+                    }
+                }
+                args[i] = createInstance(components[i].getType(), subFieldValues, dynamicQuery);
+            } else {
+                Object value = fieldValues.get(fieldName);
+                args[i] = convertValue(value, components[i].getType());
+            }
+        }
+        
+        Constructor<ResultType> constructor = resultClass.getDeclaredConstructor(paramTypes);
+        return constructor.newInstance(args);
+    }
+
+    /**
+     * Create class instance using no-arg constructor and setters
+     */
+    private <ResultType> ResultType createClassInstance(
+            Class<ResultType> resultClass, 
+            Map<String, Object> fieldValues,
+            DynamicQuery dynamicQuery) throws Exception {
+        
+        ResultType instance = resultClass.getDeclaredConstructor().newInstance();
+        
+        for (Field field : resultClass.getDeclaredFields()) {
+            String fieldName = field.getName();
+            
+            // Check if it's a sub-model
+            if (field.isAnnotationPresent(JdqSubModel.class)) {
+                Map<String, Object> subFieldValues = new HashMap<>();
+                String prefix = fieldName + ".";
+                for (Map.Entry<String, Object> entry : fieldValues.entrySet()) {
+                    if (entry.getKey().startsWith(prefix)) {
+                        subFieldValues.put(entry.getKey().substring(prefix.length()), entry.getValue());
+                    }
+                }
+                Object subModel = createInstance(field.getType(), subFieldValues, dynamicQuery);
+                field.setAccessible(true);
+                field.set(instance, subModel);
+            } else if (fieldValues.containsKey(fieldName)) {
+                Object value = fieldValues.get(fieldName);
+                Object convertedValue = convertValue(value, field.getType());
+                
+                // Find setter method
+                String setterName = "set" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+                try {
+                    Method setter = resultClass.getMethod(setterName, field.getType());
+                    setter.invoke(instance, convertedValue);
+                } catch (NoSuchMethodException e) {
+                    // Try direct field access
+                    field.setAccessible(true);
+                    field.set(instance, convertedValue);
+                }
+            }
+        }
+        
+        return instance;
+    }
+    
+    /**
+     * Convert value to target type
+     */
+    private Object convertValue(Object value, Class<?> targetType) {
+        if (value == null) {
+            return null;
+        }
+        
+        // If types already match, return as is
+        if (targetType.isAssignableFrom(value.getClass())) {
+            return value;
+        }
+        
+        // Handle numeric conversions
+        if (value instanceof Number) {
+            Number numValue = (Number) value;
+            if (targetType == Integer.class || targetType == int.class) {
+                return numValue.intValue();
+            } else if (targetType == Long.class || targetType == long.class) {
+                return numValue.longValue();
+            } else if (targetType == Double.class || targetType == double.class) {
+                return numValue.doubleValue();
+            } else if (targetType == Float.class || targetType == float.class) {
+                return numValue.floatValue();
+            } else if (targetType == Short.class || targetType == short.class) {
+                return numValue.shortValue();
+            } else if (targetType == Byte.class || targetType == byte.class) {
+                return numValue.byteValue();
+            }
+        }
+        
+        // Handle Date/Instant conversions
+        if (value instanceof java.util.Date && targetType == java.time.Instant.class) {
+            return ((java.util.Date) value).toInstant();
+        }
+        if (value instanceof java.time.Instant && targetType == java.util.Date.class) {
+            return java.util.Date.from((java.time.Instant) value);
+        }
+        
+        // Handle String conversions
+        if (targetType == String.class) {
+            return value.toString();
+        }
+        
+        // Handle enum conversions
+        if (targetType.isEnum() && value instanceof String) {
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Object enumValue = Enum.valueOf((Class<? extends Enum>) targetType, (String) value);
+            return enumValue;
+        }
+        
+        // Default: return as is and let reflection handle it
+        return value;
+    }
+
     /**
      * Helper class to store nested path information
      */
