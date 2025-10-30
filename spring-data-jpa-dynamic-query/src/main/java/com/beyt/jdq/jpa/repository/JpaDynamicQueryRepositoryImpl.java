@@ -6,6 +6,7 @@ import com.beyt.jdq.core.model.DynamicQuery;
 import com.beyt.jdq.core.repository.BaseDynamicQueryRepository;
 import com.beyt.jdq.core.util.ListConsumer;
 import com.beyt.jdq.jpa.query.DynamicQueryManager;
+import com.beyt.jdq.jpa.query.JdqModelUpdater;
 import com.beyt.jdq.jpa.query.RepositoryContext;
 import com.beyt.jdq.jpa.query.builder.QueryBuilder;
 import org.springframework.data.domain.Page;
@@ -127,5 +128,12 @@ public class JpaDynamicQueryRepositoryImpl<T, ID extends Serializable> extends S
         for (int i = 0; (long) i * pageSize < totalElements; i++) {
             processor.accept(DynamicQueryManager.findAll(this, criteriaList, PageRequest.of(i, pageSize), getQueryContext()).getContent());
         }
+    }
+
+    @Override
+    @Transactional
+    public void update(Object jdqModel) {
+        JdqModelUpdater updater = new JdqModelUpdater(entityManager);
+        updater.update(jdqModel, getDomainClass());
     }
 }

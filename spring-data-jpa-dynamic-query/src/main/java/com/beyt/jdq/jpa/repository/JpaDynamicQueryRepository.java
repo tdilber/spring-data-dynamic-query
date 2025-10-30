@@ -36,6 +36,8 @@ public interface JpaDynamicQueryRepository<T, ID> extends BaseDynamicQueryReposi
 
     Page<T> findAll(List<Criteria> criteriaList, Pageable pageable);
 
+    void update(Object jdqModel);
+
     long count(List<Criteria> criteriaList);
 
     void consumePartially(ListConsumer<T> processor, int pageSize);
