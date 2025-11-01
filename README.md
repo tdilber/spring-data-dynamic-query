@@ -4,6 +4,40 @@ This project is designed to bring powerful, unified dynamic query creation to Sp
 Spring Data Elasticsearch. It tackles the complexity and boilerplate code traditionally required to write queries, 
 especially at runtime, across these different data stores.
 
+**SPOILER:** 
+
+```java
+//Model
+@JdqModel
+public record AdminUserSummary(
+        @JdqField("id") Long id,
+        @JdqField("username") String username,
+        @JdqField("roles.name") String roleName,
+        @JdqField("roles.roleAuthorizations.authorization.name") String authorizationName) {
+}
+//Query
+var query = DynamicQuery.of(List.of(Criteria.of("roles.id", CriteriaOperator.GREATER_THAN, 5L)));
+//Usage
+Page<AdminUserSummary> adminUsers = adminUserRepository.findAll(query, AdminUserSummary.class);
+// Update Example
+adminUserRepository.update(updatedAdminUser);
+```
+From Jpa Criteria Api Generated Sql:
+```sql
+select adminuser0_.id       as col_0_0_,
+       adminuser0_.username as col_1_0_,
+       role2_.name          as col_2_0_,
+       authorizat4_.name    as col_3_0_
+from admin_user adminuser0_
+         inner join admin_user_role roles1_ on adminuser0_.id = roles1_.admin_user_id
+         inner join role role2_ on roles1_.role_id = role2_.id
+         inner join role_authorization roleauthor3_ on role2_.id = roleauthor3_.role_id
+         inner join my_authorization authorizat4_ on roleauthor3_.authorization_id = authorizat4_.id
+where role2_.id > 5
+```
+
+**For more spoiler visit:** https://tdilber.com/dynamic-query-demo
+
 This project is designed to overcome the complexity and boilerplate of writing separate code for each query, especially 
 across different data stores. At its core, it simplifies the native query-building mechanisms for each data source:
 - For JPA, it builds on the Criteria API (introduced in Jpa 2).
