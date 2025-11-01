@@ -1,5 +1,7 @@
 package com.beyt.jdq.elasticsearch.core;
 
+import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import co.elastic.clients.json.JsonData;
 import com.beyt.jdq.core.deserializer.IDeserializer;
 import com.beyt.jdq.core.model.DynamicQuery;
 import com.beyt.jdq.core.model.annotation.JdqField;
@@ -10,9 +12,6 @@ import com.beyt.jdq.core.model.enums.CriteriaOperator;
 import com.beyt.jdq.core.model.exception.DynamicQueryIllegalArgumentException;
 import com.beyt.jdq.core.util.field.FieldUtil;
 import org.apache.commons.lang3.StringUtils;
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import co.elastic.clients.elasticsearch._types.query_dsl.ChildScoreMode;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -740,16 +739,16 @@ public class ElasticsearchSearchQueryTemplate {
                 }
                 
             case GREATER_THAN:
-                return Query.of(q -> q.range(r -> r.field(fieldName).gt(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).gt(asJsonData(values.get(0))))));
                 
             case GREATER_THAN_OR_EQUAL:
-                return Query.of(q -> q.range(r -> r.field(fieldName).gte(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).gte(asJsonData(values.get(0))))));
                 
             case LESS_THAN:
-                return Query.of(q -> q.range(r -> r.field(fieldName).lt(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).lt(asJsonData(values.get(0))))));
                 
             case LESS_THAN_OR_EQUAL:
-                return Query.of(q -> q.range(r -> r.field(fieldName).lte(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).lte(asJsonData(values.get(0))))));
                 
             case SPECIFIED:
                 boolean exists = Boolean.parseBoolean(values.get(0).toString());
@@ -1021,16 +1020,16 @@ public class ElasticsearchSearchQueryTemplate {
                 }
                 
             case GREATER_THAN:
-                return Query.of(q -> q.range(r -> r.field(fieldName).gt(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).gt(asJsonData(values.get(0))))));
                 
             case GREATER_THAN_OR_EQUAL:
-                return Query.of(q -> q.range(r -> r.field(fieldName).gte(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).gte(asJsonData(values.get(0))))));
                 
             case LESS_THAN:
-                return Query.of(q -> q.range(r -> r.field(fieldName).lt(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).lt(asJsonData(values.get(0))))));
                 
             case LESS_THAN_OR_EQUAL:
-                return Query.of(q -> q.range(r -> r.field(fieldName).lte(asJsonData(values.get(0)))));
+                return Query.of(q -> q.range(r -> r.untyped(rn -> rn.field(fieldName).lte(asJsonData(values.get(0))))));
                 
             case SPECIFIED:
                 boolean exists = Boolean.parseBoolean(values.get(0).toString());

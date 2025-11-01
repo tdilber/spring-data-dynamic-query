@@ -1,7 +1,6 @@
 package com.beyt.jdq.elasticsearch.repository;
 
-import com.beyt.jdq.elasticsearch.core.ElasticsearchSearchQueryTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.beyt.jdq.core.deserializer.IDeserializer;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.repository.support.*;
 import org.springframework.data.repository.Repository;
@@ -10,7 +9,6 @@ import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
 
 import java.io.Serializable;
 
@@ -21,14 +19,14 @@ import java.io.Serializable;
 public class ElasticsearchDynamicQueryRepositoryFactoryBean<R extends Repository<T, ID>, T, ID extends Serializable>
         extends ElasticsearchRepositoryFactoryBean<R, T, ID> {
 
-    protected final ElasticsearchSearchQueryTemplate elasticsearchSearchQueryTemplate;
+    protected final IDeserializer deserializer;
 
     @Nullable
     private ElasticsearchOperations operations;
 
-    public ElasticsearchDynamicQueryRepositoryFactoryBean(Class<? extends R> repositoryInterface, ElasticsearchSearchQueryTemplate elasticsearchSearchQueryTemplate) {
+    public ElasticsearchDynamicQueryRepositoryFactoryBean(Class<? extends R> repositoryInterface, IDeserializer deserializer) {
         super(repositoryInterface);
-        this.elasticsearchSearchQueryTemplate = elasticsearchSearchQueryTemplate;
+        this.deserializer = deserializer;
     }
 
     public void setElasticsearchOperations(ElasticsearchOperations operations) {
@@ -37,7 +35,7 @@ public class ElasticsearchDynamicQueryRepositoryFactoryBean<R extends Repository
     }
 
     protected RepositoryFactorySupport createRepositoryFactory() {
-        return new ElasticsearchDynamicQueryRepositoryFactory(operations, elasticsearchSearchQueryTemplate);
+        return new ElasticsearchDynamicQueryRepositoryFactory(operations, deserializer);
     }
 
     /**
@@ -46,21 +44,21 @@ public class ElasticsearchDynamicQueryRepositoryFactoryBean<R extends Repository
     private static class ElasticsearchDynamicQueryRepositoryFactory extends ElasticsearchRepositoryFactory {
 
         private final ElasticsearchOperations elasticsearchOperations;
-        private final ElasticsearchSearchQueryTemplate elasticsearchSearchQueryTemplate;
+        private final IDeserializer iDeserializer;
 
         public ElasticsearchDynamicQueryRepositoryFactory(
                 ElasticsearchOperations elasticsearchOperations,
-                ElasticsearchSearchQueryTemplate elasticsearchSearchQueryTemplate) {
+                IDeserializer iDeserializer) {
             super(elasticsearchOperations);
             this.elasticsearchOperations = elasticsearchOperations;
-            this.elasticsearchSearchQueryTemplate = elasticsearchSearchQueryTemplate;
+            this.iDeserializer = iDeserializer;
         }
 
         @Override
         protected Object getTargetRepository(RepositoryInformation information) {
             ElasticsearchEntityInformation<?, Serializable> entityInformation =
                     getEntityInformation(information.getDomainType());
-            return getTargetRepositoryViaReflection(information, information.getDomainType(), entityInformation, elasticsearchOperations, elasticsearchSearchQueryTemplate);
+            return getTargetRepositoryViaReflection(information, information.getDomainType(), entityInformation, elasticsearchOperations, iDeserializer);
         }
 
         @Override
