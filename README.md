@@ -682,7 +682,95 @@ from test_user user0_
 where user0_.age > 25
 ```
 
-#### 6- Pagination Examples
+#### 6- JdqModel Update Operations
+
+The JdqModel update feature enables powerful, type-safe partial entity updates with minimal code. Using the same `@JdqModel`, `@JdqField`, and `@JdqSubModel` annotations you already use for projections, you can now perform updates on main entities and their joined relations within a single transaction. This eliminates the need for verbose manual update code while maintaining full control over which fields to update. The system automatically generates optimized SQL UPDATE statements using JPA Criteria API, supporting simple fields, partial updates, nested entities, records, and even deep multi-level joins (4+ levels). All operations are transactional, type-safe, and leverage your existing entity relationships.
+
+##### Key Strengths
+
+- **Reuse Projection Models**: The same `@JdqModel` annotated classes used for queries can be used for updates
+- **Partial Updates**: Only non-null fields in your model are updated - perfect for PATCH operations
+- **Join Support**: Update multiple related entities in a single transaction using the same dot notation as queries (`roles.name`, `roles.roleAuthorizations.authorization.menuIcon`)
+- **Type Safety**: Compile-time checking with strongly typed models (classes or records)
+- **Zero Boilerplate**: No need to write custom update queries or manage entity loading/merging
+- **Transaction Safe**: All updates execute within the same transaction with automatic rollback on failure
+- **Flexible Structure**: Supports flat models (dot notation), nested `@JdqSubModel` structures, and Java records
+
+##### Limitations
+
+- **ID Required**: Every entity being updated (main or joined) must include its ID field in the model
+- **No Collections**: Cannot update collection fields directly - only scalar fields and single relations
+- **No Cascading**: Updates apply only to specified entities; no automatic cascade to related entities unless explicitly included
+- **JPA Only**: Currently available only for Spring Data JPA (not MongoDB or Elasticsearch)
+- **No Partial Joins**: When updating joined entities, you must provide the complete join path (e.g., cannot skip intermediate entities in a chain)
+
+##### Model Examples
+
+Here's a comprehensive example showing different update model patterns:
+
+```java
+// Deep 4-level join update - Record style (most complex example)
+@JdqModel
+public record FourLevelDeepRecordUpdateModel(
+    @JdqField("id") Long adminId,
+    @JdqField("username") String username,
+    @JdqSubModel("roles") RoleLevel2Record role
+) {
+    @JdqModel
+    public record RoleLevel2Record(
+        @JdqField("id") Long roleId,
+        @JdqField("name") String roleName,
+        @JdqField("description") String roleDescription,
+        @JdqSubModel("roleAuthorizations") RoleAuthorizationLevel3Record roleAuthorization
+    ) {
+        @JdqModel
+        public record RoleAuthorizationLevel3Record(
+            @JdqField("id") Long roleAuthorizationId,
+            @JdqSubModel("authorization") AuthorizationLevel4Record authorization
+        ) {
+            @JdqModel
+            public record AuthorizationLevel4Record(
+                @JdqField("id") Long authorizationId,
+                @JdqField("name") String authorizationName,
+                @JdqField("menuUrl") String menuUrl,
+                @JdqField("menuIcon") String menuIcon
+            ) {}
+        }
+    }
+}
+```
+
+##### Repository Usage
+
+The update method is available on all `JpaDynamicQueryRepository` instances:
+
+```java
+// Deep 4-level update
+FourLevelDeepRecordUpdateModel deepUpdate = new FourLevelDeepRecordUpdateModel(
+    3L, "adminName",
+    new FourLevelDeepRecordUpdateModel.RoleLevel2Record(
+        3L, "roleName", "roleDesc",
+        new FourLevelDeepRecordUpdateModel.RoleLevel2Record.RoleAuthorizationLevel3Record(
+            3L,
+            new FourLevelDeepRecordUpdateModel.RoleLevel2Record.RoleAuthorizationLevel3Record.AuthorizationLevel4Record(
+                3L, "authName", "/url", "icon"
+            )
+        )
+    )
+);
+adminUserRepository.update(deepUpdate);
+```
+
+_Generated Hibernate Queries:_
+
+```sql
+-- Deep 4-level update generates UPDATE for each level
+update admin_user set username=? where id=?
+update role set name=?, description=? where id=?
+update my_authorization set name=?, menu_url=?, menu_icon=? where id=?
+```
+
+#### 7- Pagination Examples
 
 You can find all pagination methods in the `JpaDynamicQueryRepository` interface. You can use the `findAllAsPage` method
 to get the result as a page.
@@ -698,7 +786,7 @@ Page<Course> result = courseRepository.findAllAsPage(dynamicQuery);
 
 _Note: you can find the example on demo github repository._
 
-#### 7- Query Builder Examples
+#### 8- Query Builder Examples
 
 When you want to use Dynamic Query on programmatic way, you can use Query Builder. Query Builder is a fluent API. You
 can use it to create a dynamic query. I inspired from `QueryDSL` project but it is just easy to use DTO create builder
@@ -722,7 +810,7 @@ Page<AuthorizationSummary> result = adminUserRepository.queryBuilder()
 
 _Note: you can find the example on demo github repository._
 
-#### 8- Argument Resolver Examples
+#### 9- Argument Resolver Examples
 
 Argument resolvers are used to automatically create dynamic queries from the request parameters. You can use the
 `@EnableJpaDynamicQueryArgumentResolvers` annotation to enable this feature.
@@ -789,7 +877,7 @@ order by role2_.id desc limit ?
 offset ?
 ```
 
-#### 9- Custom Converter
+#### 10- Custom Converter
 
 When you start using this library, there will be things that will really trouble you. But don't worry, we have a
 solution for you.
@@ -821,9 +909,9 @@ public class DateTimeDeserializer extends BasicDeserializer {
 }
 ```
 
-#### 10- Custom Entity Manager Provider
+#### 11- Custom Entity Manager Provider
 
-#### 11- Additional Features
+#### 12- Additional Features
 
 ## More Potential(Future) Features
 
