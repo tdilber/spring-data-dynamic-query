@@ -18,6 +18,9 @@ import java.util.List;
 /**
  * MongoDB implementation of MongoDynamicQueryRepository.
  * Extends SimpleMongoRepository and provides dynamic query functionality.
+ * 
+ * @param <T> the domain type the repository manages
+ * @param <ID> the type of the id of the entity the repository manages
  */
 public class MongoDynamicQueryRepositoryImpl<T, ID extends Serializable>
         extends SimpleMongoRepository<T, ID> 
@@ -26,6 +29,13 @@ public class MongoDynamicQueryRepositoryImpl<T, ID extends Serializable>
     private final MongoSearchQueryTemplate mongoSearchQueryTemplate;
     private final Class<T> entityClass;
 
+    /**
+     * Creates a new repository instance.
+     * 
+     * @param metadata the entity metadata
+     * @param mongoOperations the MongoDB operations
+     * @param mongoSearchQueryTemplate the search query template
+     */
     public MongoDynamicQueryRepositoryImpl(
             MongoEntityInformation<T, ID> metadata,
             MongoOperations mongoOperations,
@@ -35,10 +45,20 @@ public class MongoDynamicQueryRepositoryImpl<T, ID extends Serializable>
         this.entityClass = metadata.getJavaType();
     }
 
+    /**
+     * Gets the MongoDB search query template.
+     * 
+     * @return the search query template
+     */
     public MongoSearchQueryTemplate getMongoSearchQueryTemplate() {
         return mongoSearchQueryTemplate;
     }
 
+    /**
+     * Gets the entity class.
+     * 
+     * @return the entity class
+     */
     public Class<T> getEntityClass() {
         return entityClass;
     }

@@ -19,8 +19,14 @@ import java.io.Serializable;
  * Factory bean for creating MongoDynamicQueryRepository instances.
  * Similar to MongoDynamicQueryRepositoryFactoryBean for MongoDB.
  * 
- * To enable this factory, use:
+ * <p>To enable this factory, use:</p>
+ * <pre>{@code
  * @EnableMongoRepositories(repositoryFactoryBeanClass = MongoDynamicQueryRepositoryFactoryBean.class)
+ * }</pre>
+ * 
+ * @param <R> the type of the repository
+ * @param <T> the domain type the repository manages
+ * @param <ID> the type of the id of the entity the repository manages
  */
 public class MongoDynamicQueryRepositoryFactoryBean<R extends Repository<T, ID>, T, ID extends Serializable>
         extends MongoRepositoryFactoryBean<R, T, ID> {
@@ -28,6 +34,11 @@ public class MongoDynamicQueryRepositoryFactoryBean<R extends Repository<T, ID>,
     @Autowired
     private MongoSearchQueryTemplate mongoSearchQueryTemplate;
 
+    /**
+     * Creates a new factory bean instance.
+     * 
+     * @param repositoryInterface the repository interface class
+     */
     public MongoDynamicQueryRepositoryFactoryBean(Class<? extends R> repositoryInterface) {
         super(repositoryInterface);
     }
