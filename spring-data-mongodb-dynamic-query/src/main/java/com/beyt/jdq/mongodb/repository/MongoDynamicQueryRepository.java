@@ -24,6 +24,9 @@ import java.util.List;
  * 
  * Note: Unlike JPA version, this interface uses methods that require
  * a MongoSearchQueryTemplate to be injected via a custom implementation.
+ * 
+ * @param <T> the domain type the repository manages
+ * @param <ID> the type of the id of the entity the repository manages
  */
 @NoRepositoryBean
 public interface MongoDynamicQueryRepository<T, ID> extends BaseDynamicQueryRepository<T, ID>, MongoRepository<T, ID> {
@@ -75,6 +78,10 @@ public interface MongoDynamicQueryRepository<T, ID> extends BaseDynamicQueryRepo
 
     /**
      * Consume all entities matching dynamic query in batches
+     * 
+     * @param dynamicQuery the dynamic query to filter entities
+     * @param processor the consumer to process each batch
+     * @param pageSize the size of each batch
      */
     void consumePartially(DynamicQuery dynamicQuery, ListConsumer<T> processor, int pageSize);
 

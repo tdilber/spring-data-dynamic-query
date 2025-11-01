@@ -42,6 +42,12 @@ public class MongoSearchQueryTemplate {
     private final MongoTemplate mongoTemplate;
     private final IDeserializer deserializer;
 
+    /**
+     * Creates a new MongoSearchQueryTemplate.
+     * 
+     * @param mongoTemplate the MongoDB template
+     * @param deserializer the deserializer for query values
+     */
     public MongoSearchQueryTemplate(MongoTemplate mongoTemplate, IDeserializer deserializer) {
         this.mongoTemplate = mongoTemplate;
         this.deserializer = deserializer;
@@ -49,6 +55,11 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Find all entities matching the criteria list
+     * 
+     * @param <Entity> the entity type
+     * @param entityClass the entity class
+     * @param searchCriteriaList the list of search criteria
+     * @return list of matching entities
      */
     public <Entity> List<Entity> findAll(Class<Entity> entityClass, List<com.beyt.jdq.core.model.Criteria> searchCriteriaList) {
         DynamicQuery dynamicQuery = DynamicQuery.of(searchCriteriaList);
@@ -57,6 +68,11 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Find all entities matching the dynamic query
+     * 
+     * @param <Entity> the entity type
+     * @param entityClass the entity class
+     * @param dynamicQuery the dynamic query
+     * @return list of matching entities
      */
     public <Entity> List<Entity> findAll(Class<Entity> entityClass, DynamicQuery dynamicQuery) {
         // Check if we need aggregation pipeline (joins, distinct, or projection)
@@ -71,6 +87,13 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Find all entities with projection matching the dynamic query
+     * 
+     * @param <Entity> the entity type
+     * @param <ResultType> the result type
+     * @param entityClass the entity class
+     * @param dynamicQuery the dynamic query
+     * @param resultClass the result class for projection
+     * @return list of projected results
      */
     public <Entity, ResultType> List<ResultType> findAll(Class<Entity> entityClass, DynamicQuery dynamicQuery, Class<ResultType> resultClass) {
         // Extract @JdqModel annotations if present
@@ -96,6 +119,12 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Find all entities as page matching the criteria list
+     * 
+     * @param <Entity> the entity type
+     * @param entityClass the entity class
+     * @param searchCriteriaList the list of search criteria
+     * @param pageable the pageable information
+     * @return page of matching entities
      */
     public <Entity> Page<Entity> findAllAsPage(Class<Entity> entityClass, List<com.beyt.jdq.core.model.Criteria> searchCriteriaList, Pageable pageable) {
         DynamicQuery dynamicQuery = DynamicQuery.of(searchCriteriaList);
@@ -106,6 +135,11 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Find all entities as page matching the dynamic query
+     * 
+     * @param <Entity> the entity type
+     * @param entityClass the entity class
+     * @param dynamicQuery the dynamic query
+     * @return page of matching entities
      */
     public <Entity> Page<Entity> findAllAsPage(Class<Entity> entityClass, DynamicQuery dynamicQuery) {
         Pageable pageable = getPageable(dynamicQuery);
@@ -128,6 +162,13 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Find all entities as page with projection matching the dynamic query
+     * 
+     * @param <Entity> the entity type
+     * @param <ResultType> the result type
+     * @param entityClass the entity class
+     * @param dynamicQuery the dynamic query
+     * @param resultClass the result class for projection
+     * @return page of projected results
      */
     public <Entity, ResultType> Page<ResultType> findAllAsPage(Class<Entity> entityClass, DynamicQuery dynamicQuery, Class<ResultType> resultClass) {
         // Extract @JdqModel annotations if present
@@ -143,6 +184,11 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Count entities matching the criteria list
+     * 
+     * @param <Entity> the entity type
+     * @param entityClass the entity class
+     * @param searchCriteriaList the list of search criteria
+     * @return count of matching entities
      */
     public <Entity> long count(Class<Entity> entityClass, List<com.beyt.jdq.core.model.Criteria> searchCriteriaList) {
         DynamicQuery dynamicQuery = DynamicQuery.of(searchCriteriaList);
@@ -157,6 +203,11 @@ public class MongoSearchQueryTemplate {
 
     /**
      * Prepare a MongoDB Query from DynamicQuery
+     * 
+     * @param <Entity> the entity type
+     * @param entityClass the entity class
+     * @param searchQuery the dynamic query
+     * @return the MongoDB Query object
      */
     public <Entity> Query prepareQuery(Class<Entity> entityClass, DynamicQuery searchQuery) {
         Criteria criteria = applyCriteria(entityClass, searchQuery);

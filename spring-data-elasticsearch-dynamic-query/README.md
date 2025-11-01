@@ -1,6 +1,6 @@
-# JPA Dynamic Query - Elasticsearch Support
+# Java Dynamic Query - Elasticsearch Support
 
-This package provides Elasticsearch support for the JPA Dynamic Query library, allowing you to use the same dynamic query API with Elasticsearch repositories.
+This package provides Elasticsearch support for the Java Dynamic Query library, allowing you to use the same dynamic query API with Elasticsearch repositories.
 
 ## Features
 

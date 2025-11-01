@@ -1,29 +1,35 @@
-# Spring Jpa Dynamic Query (JDQ)
+# Java Dynamic Query (JDQ)
 
-This project is designed to overcome the sluggishness of Spring Data JPA's query creation and the need to write separate
-code for each query. At its core, it simplifies the Criteria API introduced in Jpa 2, enabling programmatic or dynamic
-runtime query creation.
+This project is designed to bring powerful, unified dynamic query creation to Spring Data JPA, Spring Data MongoDB, and 
+Spring Data Elasticsearch. It tackles the complexity and boilerplate code traditionally required to write queries, 
+especially at runtime, across these different data stores.
 
-The query creation capabilities include 9 different field operators, AND-OR conjunctions, SCOPE support, and single or
-multi JOIN features. The SELECT, DISTINCT, ORDER BY clauses in the query are also supported with Joined Column. In
-addition, all query results can be returned as both List<?> and Page<?>. After SELECT clause, PROJECTION support is also
-available. This PROJECTION works with ignore missing fields rules for more flexibility.
+This project is designed to overcome the complexity and boilerplate of writing separate code for each query, especially 
+across different data stores. At its core, it simplifies the native query-building mechanisms for each data source:
+- For JPA, it builds on the Criteria API (introduced in Jpa 2).
+- For MongoDB, it builds on the MongoDB Criteria API.
+- For Elasticsearch, it builds on the Elasticsearch Query DSL.
+This enables a unified approach to programmatic or dynamic runtime query creation.
+
+The query creation capabilities include 9 different field operators, AND-OR conjunctions, SCOPE support, and (for JPA 
+and MongoDB) single or multi JOIN features. The SELECT, DISTINCT, ORDER BY clauses in the query are also supported with 
+Joined Column. In addition, all query results can be returned as both List<?> and Page<?>. After SELECT clause, PROJECTION 
+support is also available. This PROJECTION works with ignore missing fields rules for more flexibility. In Elasticsearch, 
 
 You don't need to write any lines of code to create these queries, all operations including all JOIN operations are done
-dynamically at runtime. It is sufficient to create just one Repository interface. The objects required to call the
-methods related to dynamic query in the interface can be taken from within the program or from outside the program (like
-DTO) as Serializable. Since all query creation and database query operations are done with Criteria Api during these
-operations, it is as secure as Spring Data JPA, and works as fast and effectively as Spring Data JPA.
+dynamically at runtime. It is sufficient to create just one Repository interface. The objects required to build and call 
+the dynamic queries can be taken from within your program or from external DTOs. Since all query creation and database 
+query operations are done with Criteria Api during these operations, it is as secure as Spring Data (JPA, MongoDB, Elasticsearch), and works as fast 
+and effectively as Spring Data (JPA, MongoDB, Elasticsearch).
 
 **Note:**
 
+- #### **The project have a live Demo. I suggest you to visit and try it from:** https://tdilber.com/dynamic-query-demo
 - The project have a Turkish introduction video on Youtube. You can watch it from: https://youtu.be/kY3UGLKXgmo
-- The project have a demo repository for each detail examples. You can find in this github
-  repository: https://github.com/tdilber/spring-jpa-dynamic-query-presentation-demo
 
 ## Introduction
 
-**This is the base Models for Jpa Dynamic Query.**
+**This is the unified base Models for Spring Dynamic Query. Models same for all Databases (JPA, MongoDB, Elasticsearch).**
 
 ```java
 public enum CriteriaOperator {
@@ -62,12 +68,12 @@ public class DynamicQuery implements Serializable {
 }
 ```
 
-**This is the base Methods for JpaDynamicQueryRepository.**
+**This is the base unified Methods for BaseDynamicQueryRepository.**
 
 ```java
 
 @NoRepositoryBean
-public interface JpaDynamicQueryRepository<T, ID> extends JpaRepository<T, ID>, JpaSpecificationExecutor<T> {
+public interface BaseDynamicQueryRepository<T, ID> {
     // List Entity with WHERE Clause (JOIN supported)
     List<T> findAll(List<Criteria> criteriaList);
 
@@ -85,21 +91,29 @@ public interface JpaDynamicQueryRepository<T, ID> extends JpaRepository<T, ID>, 
 
     // List Entity with SELECT, DISTINCT, WHERE, ORDER BY Clause (JOIN supported) Page Supported With Projection
     <ResultType> Page<ResultType> findAllAsPage(DynamicQuery dynamicQuery, Class<ResultType> resultTypeClass);
+    
+    // Count with WHERE Clause (JOIN supported)
+    long count(List<Criteria> criteriaList);
+
+    // Look like Query DSL Builder, you can create simple queries with this builder in code. 
+    BaseQueryBuilder<T, ID> queryBuilder();
 }
 ```
 
 ## Writing the Code
 
-You can find the sample code from: https://github.com/tdilber/spring-jpa-dynamic-query-presentation-demo
 
-### 1- Setting up the project with Maven
+### Getting Started For Spring Data JPA
+
+
+#### 1- Setting up the project with Maven
 
 **for Spring Boot 3.*:**
 ```maven
 <dependency>
     <groupId>io.github.tdilber</groupId>
     <artifactId>spring-boot-starter-jpa-dynamic-query</artifactId>
-    <version>0.4.0</version>
+    <version>0.8.0</version>
 </dependency>
 ```
 
@@ -107,12 +121,12 @@ You can find the sample code from: https://github.com/tdilber/spring-jpa-dynamic
 ```maven
 <dependency>
     <groupId>io.github.tdilber</groupId>
-    <artifactId>spring-jpa-dynamic-query</artifactId>
-    <version>0.7.1</version>
+    <artifactId>spring-data-jpa-dynamic-query-sb2</artifactId>
+    <version>0.8.0</version>
 </dependency>
 ```
 
-### 2- Enable Annotation
+#### 2- Enable Annotation
 
 Add the `@EnableJpaDynamicQuery` annotation to the main class of your project. This annotation is used to enable the
 dynamic query feature.
@@ -129,7 +143,7 @@ public class SpringJpaDynamicQueryDemoApplication {
 
 ```
 
-### 3- Create a Repository
+#### 3- Create a Repository
 
 **Create a Repository for Existing Entity.**
 
@@ -139,9 +153,106 @@ public class SpringJpaDynamicQueryDemoApplication {
 }
 ```
 
-### 4- Operator Examples
+### Getting Started For Spring Data MongoDB
 
-##### What is Criteria?
+#### 1- Setting up the project with Maven
+
+**for Spring Boot 3.*:**
+```maven
+<dependency>
+    <groupId>io.github.tdilber</groupId>
+    <artifactId>spring-data-mongodb-dynamic-query</artifactId>
+    <version>0.8.0</version>
+</dependency>
+```
+
+**for Spring Boot 2.*:**
+```maven
+<dependency>
+    <groupId>io.github.tdilber</groupId>
+    <artifactId>spring-data-mongodb-dynamic-query-sb2</artifactId>
+    <version>0.8.0</version>
+</dependency>
+```
+
+#### 2- Enable Annotation
+Add the `@EnableMongoDbDynamicQuery` annotation to the main class of your project. This annotation is used to enable the
+dynamic query feature.
+
+```java
+@EnableMongoDbDynamicQuery
+@SpringBootApplication
+public class SpringJpaDynamicQueryDemoApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(SpringJpaDynamicQueryDemoApplication.class, args);
+    }
+}
+
+```
+
+#### 3- Create a Repository
+
+**Create a Repository for Existing Entity.**
+
+```java
+ public interface AdminUserMongoRepository extends MongoDynamicQueryRepository<AdminUser, Long> {
+
+}
+```
+
+### Getting Started For Spring Data Elasticsearch
+
+#### 1- Setting up the project with Maven
+
+**for Spring Boot 3.*:**
+```maven
+<dependency>
+    <groupId>io.github.tdilber</groupId>
+    <artifactId>spring-data-elasticsearch-dynamic-query</artifactId>
+    <version>0.8.0</version>
+</dependency>
+```
+
+**for Spring Boot 2.*:**
+```maven
+<dependency>
+    <groupId>io.github.tdilber</groupId>
+    <artifactId>spring-data-elasticsearch-dynamic-query-sb2</artifactId>
+    <version>0.8.0</version>
+</dependency>
+```
+
+#### 2- Enable Annotation
+Add the `@EnableElasticsearchDynamicQuery` annotation to the main class of your project. This annotation is used to
+enable the dynamic query feature.
+
+```java
+@EnableElasticsearchDynamicQuery
+@SpringBootApplication
+public class SpringJpaDynamicQueryDemoApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(SpringJpaDynamicQueryDemoApplication.class, args);
+    }
+}
+
+```
+
+#### 3- Create a Repository
+
+**Create a Repository for Existing Entity.**
+
+```java
+ public interface AdminUserElasticsearchRepository extends ElasticsearchDynamicQueryRepository<AdminUser, Long> {
+
+}
+```
+
+
+### Coding Examples
+
+#### 1- Operator Examples
+
+###### What is Criteria?
 
 At the beginning we must understand what is Criteria. Criteria is SQL Query WHERE Clause item.
 
@@ -155,7 +266,7 @@ For example `SELECT * FROM user WHERE id > 5 AND name like 'Ali%' AND surname = 
 
 this is it :)
 
-##### Multi Value Supported Criteria Operators
+###### Multi Value Supported Criteria Operators
 
 Some operators have **multi value support**. This means that you can use multiple values for the same field.
 
@@ -167,7 +278,7 @@ Some operators have **multi value support**. This means that you can use multipl
 **Note:** As you know Sql Where Clause Some operators have multi value input, for example **IN, NOT IN**. We develop
 more multi value operators with java code touches.
 
-#### Comparable Operators
+##### Comparable Operators
 
 This operator is used to compare numbers and dates. Available Java Types are **Timestamp,  Date, Double, Long, LocalDate,
 ZonedDateTime, Instant, Integer**.
@@ -209,7 +320,7 @@ where customer0_.age <> 23
   and customer0_.age <> 25
 ```
 
-#### String Operators
+##### String Operators
 
 This operator is used to compare strings. The following operators are available:
 
@@ -262,7 +373,7 @@ where customer0_.name like ?
    or customer0_.name like ?
 ```
 
-#### Null Check Operator
+##### Null Check Operator
 
 This operator is used to check if the field is null or not. The following operators are available: `SPECIFIED`
 
@@ -293,7 +404,7 @@ from customer customer0_
 where customer0_.name is null
 ```
 
-### 5- AND-OR Operator Examples
+#### 2- AND-OR Operator Examples
 
 Sequentially, all criteria are evaluated with the AND operator. If you want to evaluate the criteria with the `OR`
 operator, you can use the `Criteria.OR()` method.
@@ -336,7 +447,7 @@ where (customer0_.age = 23 or customer0_.age = 24) and customer0_.age <> 20 and 
    or customer0_.age <> 24 and (customer0_.age = 25 or customer0_.age = 26)
 ```
 
-### 6- SCOPE Operator Examples
+#### 3- SCOPE Operator Examples
 
 Just And-Or operators are not enough for complex queries. For Example: you cannot this simple query with just AND-OR
 operators: `(A OR B) AND (C OR D)`. For this reason, the `CriteriaOperator.PARENTHES` operator is used to create a
@@ -371,7 +482,7 @@ where (course0_.id = 1 or course0_.id = 2)
   and (course0_.id = 2 or course0_.id = 3)
 ```
 
-### 7- JOIN Examples
+#### 4- JOIN Examples
 
 **The strongest feature of this project is JOIN**. Joins work dynamically. If you use it, it automatically performs a
 JOIN. It understands which columns to match between two tables through the Join Annotations you specify in the entity (
@@ -455,14 +566,14 @@ from admin_user adminuser0_
 where authorizat4_.menu_icon like ?
 ```
 
-### 8- Projection Examples
+#### 5- Projection Examples
 
 Spring Data projections always boring. But this project projections are very simple. 
 There are two ways to use projections. I suggested using the second way. Because the second way is easier and more reusable.
 
 **Note:** Record class is supported for projection. You can use record class for projection.
 
-#### A- Manual Projection
+##### A- Manual Projection
 When you want to use specific fields in the result, you can add selected fields on select list on `DynamicQuery` object. You can add multiple fields to the
 select clause. You can also use the `Pair` class to give an alias to the field.
 
@@ -509,7 +620,7 @@ where authorizat4_.menu_icon like ?
 
 _Note: you can find the example on demo github repository._
 
-#### B- Auto Projection with Annotated Model
+##### B- Auto Projection with Annotated Model
 Model Annotations: `@JdqModel`, `@JdqField`, `@JdqIgnoreField`, `@JdqSubModel`
 
 We are discovering select clause if model has `@JdqModel` annotation AND select clause is empty.
@@ -599,7 +710,7 @@ from test_user user0_
 where user0_.age > 25
 ```
 
-### 9- Pagination Examples
+#### 6- Pagination Examples
 
 You can find all pagination methods in the `JpaDynamicQueryRepository` interface. You can use the `findAllAsPage` method
 to get the result as a page.
@@ -615,7 +726,7 @@ Page<Course> result = courseRepository.findAllAsPage(dynamicQuery);
 
 _Note: you can find the example on demo github repository._
 
-### 10- Query Builder Examples
+#### 7- Query Builder Examples
 
 When you want to use Dynamic Query on programmatic way, you can use Query Builder. Query Builder is a fluent API. You
 can use it to create a dynamic query. I inspired from `QueryDSL` project but it is just easy to use DTO create builder
@@ -639,7 +750,7 @@ Page<AuthorizationSummary> result = adminUserRepository.queryBuilder()
 
 _Note: you can find the example on demo github repository._
 
-### 11- Argument Resolver Examples
+#### 8- Argument Resolver Examples
 
 Argument resolvers are used to automatically create dynamic queries from the request parameters. You can use the
 `@EnableJpaDynamicQueryArgumentResolvers` annotation to enable this feature.
@@ -706,7 +817,7 @@ order by role2_.id desc limit ?
 offset ?
 ```
 
-### 12- Custom Converter
+#### 9- Custom Converter
 
 When you start using this library, there will be things that will really trouble you. But don't worry, we have a
 solution for you.
@@ -738,9 +849,9 @@ public class DateTimeDeserializer extends BasicDeserializer {
 }
 ```
 
-### 13- Custom Entity Manager Provider
+#### 10- Custom Entity Manager Provider
 
-### 14- Additional Features
+#### 11- Additional Features
 
 ## More Potential(Future) Features
 

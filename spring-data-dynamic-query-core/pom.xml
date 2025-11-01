@@ -7,13 +7,13 @@
     <parent>
         <artifactId>spring-boot-starter-parent</artifactId>
         <groupId>org.springframework.boot</groupId>
-        <version>3.3.3</version>
+        <version>3.5.7</version>
         <relativePath/>
     </parent>
 
     <groupId>io.github.tdilber</groupId>
     <artifactId>spring-data-dynamic-query-core</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>0.8.0</version>
     <packaging>jar</packaging>
     <name>Spring Data Dynamic Query Core</name>
     <description>Spring Data Dynamic Query Core</description>

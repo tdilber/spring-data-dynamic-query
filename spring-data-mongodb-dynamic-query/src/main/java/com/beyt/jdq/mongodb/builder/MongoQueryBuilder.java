@@ -16,11 +16,21 @@ import java.util.stream.Collectors;
 /**
  * MongoDB version of QueryBuilder.
  * Provides fluent API for building dynamic queries for MongoDB repositories.
+ * 
+ * @param <T> the domain type the builder operates on
+ * @param <ID> the type of the id of the entity
  */
 public class MongoQueryBuilder<T, ID> extends BaseQueryBuilder<T, ID> implements DistinctWhereOrderByPage<T, ID>, WhereOrderByPage<T, ID>, OrderByPage<T, ID>, PageableResult<T, ID>, Result<T, ID> {
+    /** The MongoDB repository instance */
     protected final MongoDynamicQueryRepository<T, ID> mongoRepository;
+    /** The dynamic query being built */
     protected final DynamicQuery dynamicQuery;
 
+    /**
+     * Creates a new query builder.
+     * 
+     * @param mongoRepository the MongoDB repository
+     */
     public MongoQueryBuilder(MongoDynamicQueryRepository<T, ID> mongoRepository) {
         this.mongoRepository = mongoRepository;
         this.dynamicQuery = new DynamicQuery();

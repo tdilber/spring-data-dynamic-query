@@ -1,5 +1,6 @@
 package com.beyt.jdq.elasticsearch.repository;
 
+import com.beyt.jdq.core.deserializer.IDeserializer;
 import com.beyt.jdq.core.model.Criteria;
 import com.beyt.jdq.core.model.DynamicQuery;
 import com.beyt.jdq.core.util.ListConsumer;
@@ -26,14 +27,15 @@ public class ElasticsearchDynamicQueryRepositoryImpl<T, ID extends Serializable>
     private final ElasticsearchSearchQueryTemplate elasticsearchSearchQueryTemplate;
     private final Class<T> entityClass;
     private final ElasticsearchOperations elasticsearchOperations;
+    private final IDeserializer deserializer;
 
     public ElasticsearchDynamicQueryRepositoryImpl(
             Class<T> entityClass,
             ElasticsearchEntityInformation<T, ID> metadata,
-            ElasticsearchOperations elasticsearchOperations,
-            ElasticsearchSearchQueryTemplate elasticsearchSearchQueryTemplate) {
+            ElasticsearchOperations elasticsearchOperations, IDeserializer deserializer) {
         super(metadata, elasticsearchOperations);
-        this.elasticsearchSearchQueryTemplate = elasticsearchSearchQueryTemplate;
+        this.deserializer = deserializer;
+        this.elasticsearchSearchQueryTemplate = new ElasticsearchSearchQueryTemplate(elasticsearchOperations, deserializer);
         this.entityClass = entityClass;
         this.elasticsearchOperations = elasticsearchOperations;
     }

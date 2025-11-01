@@ -16,20 +16,20 @@ import java.lang.annotation.Target;
  * Annotation to enable Dynamic Query support for MongoDB repositories.
  * 
  * Usage:
- * <pre>
+ * <pre>{@code
  * @Configuration
  * @EnableMongoDbDynamicQuery
  * public class MongoConfig {
  *     // Your MongoDB configuration
  * }
- * </pre>
+ * }</pre>
  * 
  * Then your repositories can extend MongoDynamicQueryRepository:
- * <pre>
- * public interface UserRepository extends MongoDynamicQueryRepository&lt;User, String&gt; {
+ * <pre>{@code
+ * public interface UserRepository extends MongoDynamicQueryRepository<User, String> {
  *     // Your custom methods
  * }
- * </pre>
+ * }</pre>
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})

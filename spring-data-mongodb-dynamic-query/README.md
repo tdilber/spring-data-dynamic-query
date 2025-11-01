@@ -1,6 +1,6 @@
-# JPA Dynamic Query - MongoDB Support
+# Java Dynamic Query - MongoDB Support
 
-This package provides MongoDB support for the JPA Dynamic Query library, allowing you to use the same dynamic query API with MongoDB repositories.
+This package provides MongoDB support for the Java Dynamic Query library, allowing you to use the same dynamic query API with MongoDB repositories.
 
 ## Features
 
@@ -28,7 +28,7 @@ Ensure you have Spring Data MongoDB in your `pom.xml`:
 </dependency>
 ```
 
-### 2. Enable JPA Dynamic Query MongoDB
+### 2. Enable Java Dynamic Query MongoDB
 
 Add the `@EnableJpaDynamicQueryMongo` annotation to your configuration class:
 

@@ -7,13 +7,13 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.3</version>
+        <version>3.5.7</version>
         <relativePath/>
     </parent>
 
     <groupId>io.github.tdilber</groupId>
-    <artifactId>spring-boot-starter-data-jpa-dynamic-query</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <artifactId>spring-data-jpa-dynamic-query</artifactId>
+    <version>0.8.0</version>
     <packaging>jar</packaging>
     <name>Spring Data Jpa Dynamic Query</name>
     <description>Spring Data Jpa Dynamic Query (JDQ) Project</description>
@@ -49,7 +49,7 @@
         <dependency>
             <groupId>io.github.tdilber</groupId>
             <artifactId>spring-data-dynamic-query-core</artifactId>
-            <version>0.4.0-SNAPSHOT</version>
+            <version>0.8.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
