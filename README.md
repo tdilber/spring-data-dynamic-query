@@ -4,7 +4,7 @@ This project is designed to bring powerful, unified dynamic query creation to Sp
 Spring Data Elasticsearch. It tackles the complexity and boilerplate code traditionally required to write queries, 
 especially at runtime, across these different data stores.
 
-**SPOILER:** 
+### **SPOILER:**
 
 ```java
 //Model
@@ -19,8 +19,8 @@ public record AdminUserSummary(
 var query = DynamicQuery.of(List.of(Criteria.of("roles.id", CriteriaOperator.GREATER_THAN, 5L)));
 //Usage
 Page<AdminUserSummary> adminUsers = adminUserRepository.findAll(query, AdminUserSummary.class);
-// Update Example
-adminUserRepository.update(updatedAdminUser);
+// JdqModel Update Spoiler: 
+adminUserRepository.update(updatedAdminUserJdqModel);
 ```
 From Jpa Criteria Api Generated Sql:
 ```sql
