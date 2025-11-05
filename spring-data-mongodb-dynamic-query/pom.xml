@@ -17,7 +17,7 @@
     <packaging>jar</packaging>
     <name>Spring Data MongoDB Dynamic Query</name>
     <description>Spring Data MongoDB Dynamic Query (JDQ) Project</description>
-    <url>https://github.com/tdilber/spring-jpa-dynamic-query</url>
+    <url>https://github.com/tdilber/spring-data-dynamic-query</url>
 
     <licenses>
         <license>
@@ -34,9 +34,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/tdilber/spring-jpa-dynamic-query.git</connection>
-        <developerConnection>scm:git:ssh://github.com:tdilber/spring-jpa-dynamic-query.git</developerConnection>
-        <url>http://github.com/tdilber/spring-jpa-dynamic-query/tree/master</url>
+        <connection>scm:git:git://github.com/tdilber/spring-data-dynamic-query.git</connection>
+        <developerConnection>scm:git:ssh://github.com:tdilber/spring-data-dynamic-query.git</developerConnection>
+        <url>http://github.com/tdilber/spring-data-dynamic-query/tree/master</url>
     </scm>
 
 
