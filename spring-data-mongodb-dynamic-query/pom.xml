@@ -13,7 +13,7 @@
 
     <groupId>io.github.tdilber</groupId>
     <artifactId>spring-data-mongodb-dynamic-query</artifactId>
-    <version>0.8.0</version>
+    <version>0.8.1</version>
     <packaging>jar</packaging>
     <name>Spring Data MongoDB Dynamic Query</name>
     <description>Spring Data MongoDB Dynamic Query (JDQ) Project</description>
@@ -49,7 +49,7 @@
         <dependency>
             <groupId>io.github.tdilber</groupId>
             <artifactId>spring-data-dynamic-query-core</artifactId>
-            <version>0.8.0</version>
+            <version>0.8.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.data</groupId>
